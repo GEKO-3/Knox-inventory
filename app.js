@@ -119,7 +119,6 @@ function setupForms() {
     // Recipe form
     document.getElementById('recipe-form').addEventListener('submit', handleRecipeSubmit);
     document.getElementById('add-recipe-item').addEventListener('click', addRecipeItem);
-    setupCategorySuggestions();
 }
 
 // Keyboard shortcuts setup
@@ -363,15 +362,20 @@ function setupCategorySuggestions() {
     const categoryInput = document.getElementById('recipe-category');
     const suggestionsContainer = document.getElementById('category-suggestions');
     
-    categoryInput.addEventListener('input', (e) => {
-        const value = e.target.value.toLowerCase();
-        showCategorySuggestions(value, suggestionsContainer);
-    });
+    // Safety check - make sure elements exist
+    if (!categoryInput || !suggestionsContainer) {
+        console.warn('Category suggestion elements not found');
+        return;
+    }
     
-    categoryInput.addEventListener('focus', (e) => {
-        const value = e.target.value.toLowerCase();
-        showCategorySuggestions(value, suggestionsContainer);
-    });
+    // Check if listeners are already attached
+    if (categoryInput.hasAttribute('data-suggestions-setup')) {
+        return;
+    }
+    
+    categoryInput.addEventListener('input', handleCategoryInput);
+    categoryInput.addEventListener('focus', handleCategoryFocus);
+    categoryInput.setAttribute('data-suggestions-setup', 'true');
     
     // Hide suggestions when clicking outside
     document.addEventListener('click', (e) => {
@@ -381,21 +385,39 @@ function setupCategorySuggestions() {
     });
 }
 
+function handleCategoryInput(e) {
+    const value = e.target.value.toLowerCase();
+    const suggestionsContainer = document.getElementById('category-suggestions');
+    showCategorySuggestions(value, suggestionsContainer);
+}
+
+function handleCategoryFocus(e) {
+    const value = e.target.value.toLowerCase();
+    const suggestionsContainer = document.getElementById('category-suggestions');
+    showCategorySuggestions(value, suggestionsContainer);
+}
+
 function getExistingCategories() {
     const categories = new Set();
+    console.log('Getting existing categories, recipes count:', recipes.length);
     recipes.forEach(recipe => {
         if (recipe.category && recipe.category.trim()) {
             categories.add(recipe.category.trim());
         }
     });
-    return Array.from(categories).sort();
+    const result = Array.from(categories).sort();
+    console.log('Found categories:', result);
+    return result;
 }
 
 function showCategorySuggestions(inputValue, container) {
+    console.log('Showing category suggestions for:', inputValue);
     const existingCategories = getExistingCategories();
     const filteredCategories = existingCategories.filter(category => 
         category.toLowerCase().includes(inputValue)
     );
+    
+    console.log('Filtered categories:', filteredCategories);
     
     if (filteredCategories.length === 0 || (filteredCategories.length === 1 && filteredCategories[0].toLowerCase() === inputValue)) {
         container.style.display = 'none';
@@ -787,6 +809,8 @@ async function loadRecipeData() {
         
         renderRecipeList();
         renderProductsTable();
+        // Update category suggestions when recipe data changes
+        setupCategorySuggestions();
     } catch (error) {
         console.error('Error loading recipe data:', error);
     }
@@ -949,6 +973,8 @@ async function loadData() {
     await loadSupplyData();
     await loadStockData();
     await loadRecipeData();
+    // Setup category suggestions after recipe data is loaded
+    setupCategorySuggestions();
 }
 
 // Make functions globally available
