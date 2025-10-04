@@ -246,7 +246,75 @@ function renderSupplyTable() {
         `;
         tbody.appendChild(row);
     });
+    
+    // Render mobile tiles
+    renderSupplyTiles(sortedItems);
 }
+
+function renderSupplyTiles(items) {
+    const tilesContainer = document.getElementById('supply-tiles');
+    tilesContainer.innerHTML = '';
+    
+    if (items.length === 0) {
+        tilesContainer.innerHTML = '<div class="empty-state"><h3>No supply items found</h3><p>Add your first item!</p></div>';
+        return;
+    }
+    
+    items.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'recipe-card';
+        card.innerHTML = `
+            <div class="recipe-header" onclick="toggleSupplyDetails('${item.id}')">
+                <h3>${item.name}</h3>
+                <div class="recipe-summary">
+                    <span>Price + GST: ${item.priceWithGST.toFixed(2)}</span>
+                    <span>Per Product: ${item.pricePerProduct.toFixed(4)}</span>
+                    <span>Size: ${item.size}</span>
+                </div>
+            </div>
+            <div class="recipe-details" id="supply-details-${item.id}">
+                <div class="recipe-items">
+                    <h4>Details:</h4>
+                    <div class="recipe-details-grid">
+                        <div class="recipe-item-display">
+                            <span>Base Price</span>
+                            <span>Amount: ${item.price.toFixed(2)}</span>
+                        </div>
+                        <div class="recipe-item-display">
+                            <span>Price per Product</span>
+                            <span>Amount: ${item.pricePerProduct.toFixed(4)}</span>
+                        </div>
+                        <div class="recipe-item-display">
+                            <span>Measure per Product</span>
+                            <span>Amount: ${item.measurePerProduct}</span>
+                        </div>
+                        <div class="recipe-item-display">
+                            <span>Products per Unit</span>
+                            <span>Amount: ${item.productsPerUnit.toFixed(2)}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn-secondary" onclick="editSupplyItem('${item.id}')">Edit</button>
+                    <button class="btn-remove" onclick="deleteSupplyItem('${item.id}')">Delete</button>
+                </div>
+            </div>
+        `;
+        tilesContainer.appendChild(card);
+    });
+}
+
+function toggleSupplyDetails(id) {
+    const details = document.getElementById(`supply-details-${id}`);
+    details.classList.toggle('show');
+}
+
+function toggleStockDetails(id) {
+    const details = document.getElementById(`stock-details-${id}`);
+    details.classList.toggle('show');
+}
+
+
 
 async function editSupplyItem(id) {
     const item = supplyItems.find(item => item.id === id);
@@ -409,6 +477,43 @@ function renderStockTable() {
             </td>
         `;
         tbody.appendChild(row);
+    });
+    
+    // Render mobile tiles
+    renderStockTiles(sortedStockItems);
+}
+
+function renderStockTiles(items) {
+    const tilesContainer = document.getElementById('stock-tiles');
+    tilesContainer.innerHTML = '';
+    
+    if (items.length === 0) {
+        tilesContainer.innerHTML = '<div class="empty-state"><h3>No stock items found</h3><p>Add your first order!</p></div>';
+        return;
+    }
+    
+    items.forEach(item => {
+        const lastUpdated = item.lastUpdated ? new Date(item.lastUpdated).toLocaleDateString() : 'Never';
+        const card = document.createElement('div');
+        card.className = 'recipe-card';
+        card.innerHTML = `
+            <div class="recipe-header" onclick="toggleStockDetails('${item.id}')">
+                <h3>${item.supplyItemName}</h3>
+                <div class="recipe-summary">
+                    <span>In Stock: ${item.amountInStock.toFixed(2)}</span>
+                    <span>Used: ${item.amountUsed.toFixed(2)}</span>
+                    <span>Updated: ${lastUpdated}</span>
+                </div>
+            </div>
+            <div class="recipe-details" id="stock-details-${item.id}">
+                <div class="form-actions">
+                    <button class="btn-secondary" onclick="decreaseStock('${item.id}')">Use Stock</button>
+                    <button class="btn-secondary" onclick="viewStockLog('${item.id}')">View Log</button>
+                    <button class="btn-remove" onclick="deleteStockItem('${item.id}')">Delete</button>
+                </div>
+            </div>
+        `;
+        tilesContainer.appendChild(card);
     });
 }
 
@@ -652,13 +757,14 @@ function renderRecipeList() {
             <div class="recipe-details" id="recipe-details-${recipe.id}">
                 <div class="recipe-items">
                     <h4>Items:</h4>
-                    ${recipe.items.map(item => `
-                        <div class="recipe-item-display">
-                            <span>${item.itemName}</span>
-                            <span>Measure: ${item.measure}</span>
-                            <span>Cost: ${item.cost.toFixed(2)}</span>
-                        </div>
-                    `).join('')}
+                    <div class="recipe-details-grid">
+                        ${recipe.items.map(item => `
+                            <div class="recipe-item-display">
+                                <span>${item.itemName}</span>
+                                <span>Measure: ${item.measure} • Cost: ${item.cost.toFixed(2)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
                 </div>
                 <div class="form-actions">
                     <button class="btn-secondary" onclick="editRecipe('${recipe.id}')">Edit</button>
@@ -744,6 +850,38 @@ function renderProductsTable() {
         `;
         tbody.appendChild(row);
     });
+    
+    // Render mobile tiles
+    renderProductsTiles(recipes);
+}
+
+function renderProductsTiles(items) {
+    const tilesContainer = document.getElementById('products-tiles');
+    tilesContainer.innerHTML = '';
+    
+    if (items.length === 0) {
+        tilesContainer.innerHTML = '<div class="empty-state"><h3>No products found</h3><p>Create recipes to see products here!</p></div>';
+        return;
+    }
+    
+    items.forEach(recipe => {
+        const profit = recipe.sellingPrice - recipe.totalCost;
+        const profitColor = profit >= 0 ? '#4CAF50' : '#f44336';
+        const card = document.createElement('div');
+        card.className = 'recipe-card';
+        card.innerHTML = `
+            <div class="recipe-header">
+                <h3>${recipe.name}</h3>
+                <div class="recipe-summary">
+                    <span>Category: ${recipe.category}</span>
+                    <span>Cost: ${recipe.totalCost.toFixed(2)}</span>
+                    <span>Price: ${recipe.sellingPrice.toFixed(2)}</span>
+                    <span style="color: ${profitColor}">Profit: ${profit.toFixed(2)}</span>
+                </div>
+            </div>
+        `;
+        tilesContainer.appendChild(card);
+    });
 }
 
 // Load all data
@@ -756,6 +894,8 @@ async function loadData() {
 // Make functions globally available
 window.editSupplyItem = editSupplyItem;
 window.deleteSupplyItem = deleteSupplyItem;
+window.toggleSupplyDetails = toggleSupplyDetails;
+window.toggleStockDetails = toggleStockDetails;
 window.decreaseStock = decreaseStock;
 window.deleteStockItem = deleteStockItem;
 window.viewStockLog = viewStockLog;
