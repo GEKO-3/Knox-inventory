@@ -481,7 +481,10 @@ async function loadSupplyData() {
 }
 
 function renderSupplyTable() {
+    console.log('=== RENDERING SUPPLY TABLE ===');
     console.log('Rendering supply table with items:', supplyItems.length);
+    console.log('Supply items being rendered:', supplyItems.map(item => ({ id: item.id, name: item.name, type: typeof item.id })));
+    
     const tbody = document.getElementById('supply-tbody');
     tbody.innerHTML = '';
     
@@ -689,13 +692,23 @@ function toggleStockDetails(id) {
 }
 
 async function editSupplyItem(id) {
-    console.log('editSupplyItem called with id:', id);
-    console.log('supplyItems:', supplyItems);
+    console.log('=== EDIT SUPPLY ITEM DEBUG ===');
+    console.log('Called with id:', id, 'Type:', typeof id);
+    console.log('Total supplyItems:', supplyItems.length);
+    console.log('All supply IDs:', supplyItems.map(item => ({ id: item.id, name: item.name, type: typeof item.id })));
     
-    const item = supplyItems.find(item => item.id === id);
-    console.log('found item:', item);
+    const item = supplyItems.find(item => {
+        console.log('Comparing:', item.id, '(type:', typeof item.id, ') with', id, '(type:', typeof id, ')');
+        return item.id === id || item.id === String(id) || String(item.id) === String(id);
+    });
+    
+    console.log('Found item:', item);
     if (!item) {
-        console.error('Item not found with id:', id);
+        console.error('❌ SUPPLY ITEM NOT FOUND!');
+        console.error('Searched for ID:', id);
+        console.error('Available IDs:', supplyItems.map(i => i.id));
+        console.error('Available items:', supplyItems);
+        alert(`Supply item not found! ID: ${id}\nAvailable IDs: ${supplyItems.map(i => i.id).join(', ')}`);
         return;
     }
     
@@ -1403,6 +1416,10 @@ async function loadRecipeData() {
 }
 
 function renderRecipeList() {
+    console.log('=== RENDERING RECIPE LIST ===');
+    console.log('Rendering recipe list with items:', recipes.length);
+    console.log('Recipes being rendered:', recipes.map(recipe => ({ id: recipe.id, name: recipe.name, type: typeof recipe.id })));
+    
     const container = document.getElementById('recipe-list');
     container.innerHTML = '';
     
@@ -1465,8 +1482,25 @@ function toggleRecipeDetails(id) {
 }
 
 async function editRecipe(id) {
-    const recipe = recipes.find(r => r.id === id);
-    if (!recipe) return;
+    console.log('=== EDIT RECIPE DEBUG ===');
+    console.log('Called with id:', id, 'Type:', typeof id);
+    console.log('Total recipes:', recipes.length);
+    console.log('All recipe IDs:', recipes.map(recipe => ({ id: recipe.id, name: recipe.name, type: typeof recipe.id })));
+    
+    const recipe = recipes.find(r => {
+        console.log('Comparing recipe:', r.id, '(type:', typeof r.id, ') with', id, '(type:', typeof id, ')');
+        return r.id === id || r.id === String(id) || String(r.id) === String(id);
+    });
+    
+    console.log('Found recipe:', recipe);
+    if (!recipe) {
+        console.error('❌ RECIPE NOT FOUND!');
+        console.error('Searched for ID:', id);
+        console.error('Available recipe IDs:', recipes.map(r => r.id));
+        console.error('Available recipes:', recipes);
+        alert(`Recipe not found! ID: ${id}\nAvailable IDs: ${recipes.map(r => r.id).join(', ')}`);
+        return;
+    }
     
     document.getElementById('recipe-name').value = recipe.name;
     document.getElementById('recipe-category').value = recipe.category;
@@ -1612,15 +1646,31 @@ function renderProductsTiles(items) {
 
 // Load all data
 async function loadData() {
+    console.log('=== LOADING ALL DATA ===');
     await loadSupplyData();
     await loadStockData();
     await loadRecipeData();
+    
+    console.log('=== DATA LOAD COMPLETE ===');
+    console.log('Final data counts:');
+    console.log('- Supply items:', supplyItems.length);
+    console.log('- Stock items:', stockItems.length);
+    console.log('- Recipes:', recipes.length);
+    
     // Setup category suggestions after recipe data is loaded
     setupCategorySuggestions();
     
     // Debug: Test if functions are available
-    console.log('editSupplyItem function available:', typeof window.editSupplyItem);
-    console.log('deleteSupplyItem function available:', typeof window.deleteSupplyItem);
+    console.log('Function availability:');
+    console.log('- editSupplyItem:', typeof window.editSupplyItem);
+    console.log('- editRecipe:', typeof window.editRecipe);
+    console.log('- deleteSupplyItem:', typeof window.deleteSupplyItem);
+    console.log('- deleteRecipe:', typeof window.deleteRecipe);
+    
+    // Auto-run data debug after load
+    setTimeout(() => {
+        if (window.debugData) window.debugData();
+    }, 1000);
 }
 
 // Setup global functions for Android compatibility
@@ -1661,6 +1711,31 @@ function setupGlobalFunctions() {
         console.log('Simple test called');
     };
     
+    // Test specific edit functions
+    window.testEdit = function(type, id) {
+        console.log(`=== TESTING ${type.toUpperCase()} EDIT ===`);
+        console.log('ID:', id, 'Type:', typeof id);
+        
+        switch(type.toLowerCase()) {
+            case 'supply':
+                if (window.editSupplyItem) {
+                    window.editSupplyItem(id);
+                } else {
+                    console.error('editSupplyItem not available');
+                }
+                break;
+            case 'recipe':
+                if (window.editRecipe) {
+                    window.editRecipe(id);
+                } else {
+                    console.error('editRecipe not available');
+                }
+                break;
+            default:
+                console.error('Unknown type:', type);
+        }
+    };
+    
     // Add CSS debugging function
     window.debugCSS = function(id) {
         const details = document.getElementById(`supply-details-${id}`);
@@ -1676,6 +1751,39 @@ function setupGlobalFunctions() {
                 classes: details.className
             });
         }
+    };
+    
+    // Add comprehensive data debugging function
+    window.debugData = function() {
+        console.log('=== COMPLETE DATA DEBUG ===');
+        console.log('Supply Items:', supplyItems.length, supplyItems);
+        console.log('Stock Items:', stockItems.length, stockItems);
+        console.log('Recipes:', recipes.length, recipes);
+        console.log('Supply IDs:', supplyItems.map(i => ({ id: i.id, type: typeof i.id, name: i.name })));
+        console.log('Recipe IDs:', recipes.map(r => ({ id: r.id, type: typeof r.id, name: r.name })));
+        console.log('Stock IDs:', stockItems.map(s => ({ id: s.id, type: typeof s.id, name: s.supplyItemName })));
+        
+        // Test if buttons exist in DOM
+        const supplyButtons = document.querySelectorAll('[data-supply-id]');
+        const recipeButtons = document.querySelectorAll('[data-recipe-id]');
+        const stockButtons = document.querySelectorAll('[data-stock-id]');
+        
+        console.log('DOM Buttons:');
+        console.log('Supply buttons:', supplyButtons.length, Array.from(supplyButtons).map(b => ({
+            id: b.getAttribute('data-supply-id'),
+            action: b.getAttribute('data-action'),
+            text: b.textContent.trim()
+        })));
+        console.log('Recipe buttons:', recipeButtons.length, Array.from(recipeButtons).map(b => ({
+            id: b.getAttribute('data-recipe-id'),
+            action: b.getAttribute('data-action'),
+            text: b.textContent.trim()
+        })));
+        console.log('Stock buttons:', stockButtons.length, Array.from(stockButtons).map(b => ({
+            id: b.getAttribute('data-stock-id'),
+            action: b.getAttribute('data-action'),
+            text: b.textContent.trim()
+        })));
     };
     
     console.log('Global functions setup complete');
@@ -1763,7 +1871,17 @@ function setupEventDelegation() {
         e.preventDefault();
         e.stopPropagation();
         
-        console.log('Event delegation triggered:', { action, itemId, target: target.className });
+        console.log('=== EVENT DELEGATION DEBUG ===');
+        console.log('Action:', action);
+        console.log('Item ID:', itemId, 'Type:', typeof itemId);
+        console.log('Target element:', target);
+        console.log('Target className:', target.className);
+        console.log('All data attributes:', {
+            'data-action': target.getAttribute('data-action'),
+            'data-supply-id': target.getAttribute('data-supply-id'),
+            'data-recipe-id': target.getAttribute('data-recipe-id'),
+            'data-stock-id': target.getAttribute('data-stock-id')
+        });
         
         switch(action) {
             case 'edit':
