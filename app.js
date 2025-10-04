@@ -576,13 +576,87 @@ function renderSupplyTiles(items) {
 }
 
 function toggleSupplyDetails(id) {
+    console.log('Toggling supply details for id:', id);
     const details = document.getElementById(`supply-details-${id}`);
-    details.classList.toggle('show');
+    const header = document.querySelector(`[data-supply-id="${id}"][data-action="toggle"]`);
+    
+    if (!details) {
+        console.error('Details element not found for id:', id);
+        return;
+    }
+    
+    // Add touch feedback for Android
+    if (header) {
+        header.classList.add('touching');
+        setTimeout(() => {
+            header.classList.remove('touching');
+        }, 150);
+    }
+    
+    // Handle the toggle with proper Android support
+    const isCurrentlyShown = details.classList.contains('show');
+    
+    if (isCurrentlyShown) {
+        details.classList.remove('show');
+        console.log('Hiding details for:', id);
+    } else {
+        details.classList.add('show');
+        console.log('Showing details for:', id);
+        
+        // Force reflow for Android compatibility
+        details.offsetHeight;
+        
+        // Ensure smooth animation on Android
+        setTimeout(() => {
+            details.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'nearest',
+                inline: 'nearest'
+            });
+        }, 100);
+    }
 }
 
 function toggleStockDetails(id) {
+    console.log('Toggling stock details for id:', id);
     const details = document.getElementById(`stock-details-${id}`);
-    details.classList.toggle('show');
+    const header = document.querySelector(`[data-stock-id="${id}"][data-action="toggle"]`);
+    
+    if (!details) {
+        console.error('Stock details element not found for id:', id);
+        return;
+    }
+    
+    // Add touch feedback for Android
+    if (header) {
+        header.classList.add('touching');
+        setTimeout(() => {
+            header.classList.remove('touching');
+        }, 150);
+    }
+    
+    // Handle the toggle with proper Android support
+    const isCurrentlyShown = details.classList.contains('show');
+    
+    if (isCurrentlyShown) {
+        details.classList.remove('show');
+        console.log('Hiding stock details for:', id);
+    } else {
+        details.classList.add('show');
+        console.log('Showing stock details for:', id);
+        
+        // Force reflow for Android compatibility
+        details.offsetHeight;
+        
+        // Ensure smooth animation on Android
+        setTimeout(() => {
+            details.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'nearest',
+                inline: 'nearest'
+            });
+        }, 100);
+    }
 }
 
 async function editSupplyItem(id) {
@@ -1600,7 +1674,10 @@ function setupEventDelegation() {
             case 'toggle':
                 console.log('Event delegation: calling toggleSupplyDetails with', supplyId);
                 if (window.toggleSupplyDetails) {
-                    window.toggleSupplyDetails(supplyId);
+                    // Add small delay for Android touch processing
+                    setTimeout(() => {
+                        window.toggleSupplyDetails(supplyId);
+                    }, 50);
                 } else {
                     console.error('toggleSupplyDetails function not available');
                 }
@@ -1610,24 +1687,38 @@ function setupEventDelegation() {
     
     // Handle touch events specifically for Android
     document.body.addEventListener('touchstart', function(e) {
-        const target = e.target;
+        const target = e.target.closest('[data-action]') || e.target;
         if (target.hasAttribute('data-action')) {
             target.classList.add('touching');
+            console.log('Touch start on:', target.getAttribute('data-action'));
         }
-    });
+    }, { passive: true });
     
     document.body.addEventListener('touchend', function(e) {
-        const target = e.target;
+        const target = e.target.closest('[data-action]') || e.target;
         if (target.hasAttribute('data-action')) {
             target.classList.remove('touching');
+            console.log('Touch end on:', target.getAttribute('data-action'));
+            
+            // Prevent double-firing on Android
+            e.preventDefault();
+            
             // Small delay to ensure touch is processed properly on Android
             setTimeout(() => {
-                if (!e.defaultPrevented) {
-                    target.click();
-                }
-            }, 50);
+                const clickEvent = new Event('click', { bubbles: true, cancelable: true });
+                target.dispatchEvent(clickEvent);
+            }, 100);
         }
-    });
+    }, { passive: false });
+    
+    // Handle touch cancel for Android
+    document.body.addEventListener('touchcancel', function(e) {
+        const target = e.target.closest('[data-action]') || e.target;
+        if (target.hasAttribute('data-action')) {
+            target.classList.remove('touching');
+            console.log('Touch cancelled on:', target.getAttribute('data-action'));
+        }
+    }, { passive: true });
     
     console.log('Event delegation setup complete');
     
