@@ -491,6 +491,15 @@ async function loadSupplyData() {
         if (window.offlineManager && window.offlineManager.shouldUseLocalData('supply')) {
             console.log('Loading supply data from local storage');
             supplyItems = window.offlineManager.getFromLocal('supply');
+            
+            // Ensure calculated properties are present
+            supplyItems.forEach(item => {
+                if (!item.priceWithGST || !item.pricePerProduct || !item.productsPerUnit) {
+                    item.priceWithGST = item.price * 1.08;
+                    item.productsPerUnit = item.size / item.measurePerProduct;
+                    item.pricePerProduct = item.priceWithGST / item.productsPerUnit;
+                }
+            });
         } else {
             // Load from Firebase
             console.log('Loading supply data from Firebase');
@@ -518,6 +527,16 @@ async function loadSupplyData() {
         if (window.offlineManager) {
             console.log('Falling back to local supply data');
             supplyItems = window.offlineManager.getFromLocal('supply');
+            
+            // Ensure calculated properties are present
+            supplyItems.forEach(item => {
+                if (!item.priceWithGST || !item.pricePerProduct || !item.productsPerUnit) {
+                    item.priceWithGST = item.price * 1.08;
+                    item.productsPerUnit = item.size / item.measurePerProduct;
+                    item.pricePerProduct = item.priceWithGST / item.productsPerUnit;
+                }
+            });
+            
             renderSupplyTable();
         }
     }
@@ -637,16 +656,26 @@ function toggleStockDetails(id) {
 
 
 async function editSupplyItem(id) {
-    const item = supplyItems.find(item => item.id === id);
-    if (!item) return;
-    
-    document.getElementById('supply-name').value = item.name;
-    document.getElementById('supply-price').value = item.price;
-    document.getElementById('supply-size').value = item.size;
-    document.getElementById('supply-measure').value = item.measurePerProduct;
-    
-    currentEditingId = id;
-    document.getElementById('supply-modal').style.display = 'block';
+    try {
+        const item = supplyItems.find(item => item.id === id);
+        if (!item) {
+            console.error('Supply item not found with id:', id);
+            alert('Supply item not found. Please refresh the page and try again.');
+            return;
+        }
+        
+        // Populate the form with existing data
+        document.getElementById('supply-name').value = item.name || '';
+        document.getElementById('supply-price').value = item.price || '';
+        document.getElementById('supply-size').value = item.size || '';
+        document.getElementById('supply-measure').value = item.measurePerProduct || '';
+        
+        currentEditingId = id;
+        document.getElementById('supply-modal').style.display = 'block';
+    } catch (error) {
+        console.error('Error in editSupplyItem:', error);
+        alert('Error opening edit form. Please try again.');
+    }
 }
 
 async function deleteSupplyItem(id) {
