@@ -16,6 +16,13 @@ let stockItems = [];
 let recipes = [];
 let currentEditingId = null;
 
+// Global scroll detection variables for Android
+let touchStartTime = 0;
+let touchStartX = 0;
+let touchStartY = 0;
+let isScrolling = false;
+let scrollTimeout = null;
+
 // Early function declarations for Android compatibility
 window.editSupplyItem = null;
 window.deleteSupplyItem = null;
@@ -1678,6 +1685,51 @@ function setupGlobalFunctions() {
 function setupEventDelegation() {
     console.log('Setting up event delegation for Android...');
     
+    // Add scroll detection to prevent tile expansion during scrolling
+    document.addEventListener('scroll', function() {
+        isScrolling = true;
+        console.log('Scroll detected, blocking tile expansion');
+        
+        // Clear any existing timeout
+        if (scrollTimeout) {
+            clearTimeout(scrollTimeout);
+        }
+        
+        // Reset isScrolling after scroll ends
+        scrollTimeout = setTimeout(() => {
+            isScrolling = false;
+            console.log('Scroll ended, allowing tile expansion');
+        }, 150);
+    }, { passive: true });
+    
+    // Also listen for scroll on window for better coverage
+    window.addEventListener('scroll', function() {
+        isScrolling = true;
+        if (scrollTimeout) clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => {
+            isScrolling = false;
+        }, 150);
+    }, { passive: true });
+    
+    // Listen for wheel events (mouse wheel, trackpad, momentum scrolling)
+    document.addEventListener('wheel', function() {
+        isScrolling = true;
+        console.log('Wheel/momentum scroll detected');
+        if (scrollTimeout) clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => {
+            isScrolling = false;
+        }, 200);
+    }, { passive: true });
+    
+    // Add touchmove detection at document level for broader coverage
+    document.addEventListener('touchmove', function(e) {
+        isScrolling = true;
+        if (scrollTimeout) clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => {
+            isScrolling = false;
+        }, 150);
+    }, { passive: true });
+    
     // Use event delegation with data attributes for better Android touch support
     document.body.addEventListener('click', function(e) {
         const target = e.target;
@@ -1686,9 +1738,20 @@ function setupEventDelegation() {
         
         if (!action || !supplyId) return;
         
-        // Additional check: if we just detected scrolling, ignore this click
+        // Multiple checks to prevent expansion during scrolling
         if (isScrolling) {
-            console.log('Ignoring click due to recent scrolling');
+            console.log('Ignoring click due to active scrolling');
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+        
+        // Check if we're still in a potential scroll state
+        const timeSinceTouch = Date.now() - touchStartTime;
+        if (timeSinceTouch < 100) {
+            console.log('Ignoring click - too soon after touch start');
+            e.preventDefault();
+            e.stopPropagation();
             return;
         }
         
@@ -1742,11 +1805,6 @@ function setupEventDelegation() {
     });
     
     // Handle touch events specifically for Android
-    let touchStartTime = 0;
-    let touchStartX = 0;
-    let touchStartY = 0;
-    let isScrolling = false;
-    
     document.body.addEventListener('touchstart', function(e) {
         const target = e.target.closest('[data-action]') || e.target;
         if (target.hasAttribute('data-action')) {
@@ -1769,8 +1827,8 @@ function setupEventDelegation() {
             const deltaX = Math.abs(touchX - touchStartX);
             const deltaY = Math.abs(touchY - touchStartY);
             
-            // If user moved more than 10px in any direction, consider it scrolling
-            if (deltaX > 10 || deltaY > 10) {
+            // If user moved more than 5px in any direction, consider it scrolling
+            if (deltaX > 5 || deltaY > 5) {
                 isScrolling = true;
                 target.classList.remove('touching');
                 console.log('Scrolling detected, cancelling touch action');
@@ -1860,6 +1918,18 @@ function setupEventDelegation() {
             -moz-user-select: none;
             -ms-user-select: none;
             user-select: none;
+            /* Prevent scrolling interference */
+            touch-action: manipulation;
+        }
+        
+        /* Improve scrolling on containers */
+        body {
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
+        }
+        
+        .page {
+            -webkit-overflow-scrolling: touch;
         }
     `;
     document.head.appendChild(style);
