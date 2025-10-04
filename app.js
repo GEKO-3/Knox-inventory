@@ -595,25 +595,47 @@ function toggleSupplyDetails(id) {
     
     // Handle the toggle with proper Android support
     const isCurrentlyShown = details.classList.contains('show');
+    console.log('Current state - isShown:', isCurrentlyShown);
+    console.log('Details element:', details);
+    console.log('Current classes:', details.className);
+    console.log('Current max-height:', getComputedStyle(details).maxHeight);
     
     if (isCurrentlyShown) {
         details.classList.remove('show');
         console.log('Hiding details for:', id);
+        console.log('After hide - classes:', details.className);
     } else {
+        // First force any existing animation to complete
+        details.style.transition = 'none';
+        details.offsetHeight; // Force reflow
+        
+        // Re-enable transitions
+        details.style.transition = '';
+        
+        // Add the show class
         details.classList.add('show');
         console.log('Showing details for:', id);
+        console.log('After show - classes:', details.className);
         
         // Force reflow for Android compatibility
         details.offsetHeight;
         
-        // Ensure smooth animation on Android
+        // Check if animation is working
         setTimeout(() => {
-            details.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'nearest',
-                inline: 'nearest'
-            });
+            console.log('After timeout - max-height:', getComputedStyle(details).maxHeight);
+            console.log('After timeout - classes:', details.className);
         }, 100);
+        
+        // Ensure smooth scrolling on Android
+        setTimeout(() => {
+            if (details.classList.contains('show')) {
+                details.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'nearest',
+                    inline: 'nearest'
+                });
+            }
+        }, 300);
     }
 }
 
@@ -1632,6 +1654,23 @@ function setupGlobalFunctions() {
         console.log('Simple test called');
     };
     
+    // Add CSS debugging function
+    window.debugCSS = function(id) {
+        const details = document.getElementById(`supply-details-${id}`);
+        if (details) {
+            const styles = getComputedStyle(details);
+            console.log('CSS Debug for', id, ':', {
+                maxHeight: styles.maxHeight,
+                padding: styles.padding,
+                overflow: styles.overflow,
+                transition: styles.transition,
+                display: styles.display,
+                height: styles.height,
+                classes: details.className
+            });
+        }
+    };
+    
     console.log('Global functions setup complete');
 }
 
@@ -1674,10 +1713,21 @@ function setupEventDelegation() {
             case 'toggle':
                 console.log('Event delegation: calling toggleSupplyDetails with', supplyId);
                 if (window.toggleSupplyDetails) {
-                    // Add small delay for Android touch processing
-                    setTimeout(() => {
-                        window.toggleSupplyDetails(supplyId);
-                    }, 50);
+                    // Prevent rapid firing by checking if already animating
+                    const details = document.getElementById(`supply-details-${supplyId}`);
+                    if (details && !details.classList.contains('animating')) {
+                        details.classList.add('animating');
+                        setTimeout(() => {
+                            details.classList.remove('animating');
+                        }, 600); // Match animation duration
+                        
+                        // Add small delay for Android touch processing
+                        setTimeout(() => {
+                            window.toggleSupplyDetails(supplyId);
+                        }, 50);
+                    } else {
+                        console.log('Animation already in progress, ignoring toggle');
+                    }
                 } else {
                     console.error('toggleSupplyDetails function not available');
                 }

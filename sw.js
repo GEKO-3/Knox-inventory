@@ -1,4 +1,4 @@
-const CACHE_NAME = 'knox-inventory-v1.0.4';
+const CACHE_NAME = 'knox-inventory-v1.0.5';
 const urlsToCache = [
   './',
   './index.html',

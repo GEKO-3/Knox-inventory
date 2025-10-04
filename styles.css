@@ -354,13 +354,21 @@ tr:last-child td {
 }
 
 .recipe-details {
-    padding: 20px;
+    padding: 0 20px;
     background: #fafafa;
-    display: none;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease-out, padding 0.3s ease-out;
+    will-change: max-height;
+    /* Android optimization */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
 }
 
 .recipe-details.show {
-    display: block;
+    max-height: 2000px;
+    padding: 20px;
+    transition: max-height 0.5s ease-in, padding 0.3s ease-in;
 }
 
 .recipe-items {
@@ -719,6 +727,12 @@ tr:last-child td {
         padding: 10px;
     }
     
+    /* Ensure tiles expand properly on mobile */
+    .recipe-details.show {
+        max-height: 3000px !important;
+        transition: max-height 0.6s ease-in, padding 0.4s ease-in;
+    }
+    
     header h1 {
         font-size: 2rem;
     }
@@ -805,9 +819,7 @@ tr:last-child td {
     animation: fadeIn 0.3s ease;
 }
 
-.recipe-details.show {
-    animation: fadeIn 0.3s ease;
-}
+/* Removed duplicate rule - using height-based animation above */
 
 /* PWA Styles */
 .install-btn {
