@@ -1686,6 +1686,12 @@ function setupEventDelegation() {
         
         if (!action || !supplyId) return;
         
+        // Additional check: if we just detected scrolling, ignore this click
+        if (isScrolling) {
+            console.log('Ignoring click due to recent scrolling');
+            return;
+        }
+        
         e.preventDefault();
         e.stopPropagation();
         
@@ -1736,11 +1742,39 @@ function setupEventDelegation() {
     });
     
     // Handle touch events specifically for Android
+    let touchStartTime = 0;
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let isScrolling = false;
+    
     document.body.addEventListener('touchstart', function(e) {
         const target = e.target.closest('[data-action]') || e.target;
         if (target.hasAttribute('data-action')) {
+            touchStartTime = Date.now();
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            isScrolling = false;
+            
             target.classList.add('touching');
             console.log('Touch start on:', target.getAttribute('data-action'));
+        }
+    }, { passive: true });
+    
+    // Detect scrolling vs tapping
+    document.body.addEventListener('touchmove', function(e) {
+        const target = e.target.closest('[data-action]') || e.target;
+        if (target.hasAttribute('data-action') && touchStartTime > 0) {
+            const touchX = e.touches[0].clientX;
+            const touchY = e.touches[0].clientY;
+            const deltaX = Math.abs(touchX - touchStartX);
+            const deltaY = Math.abs(touchY - touchStartY);
+            
+            // If user moved more than 10px in any direction, consider it scrolling
+            if (deltaX > 10 || deltaY > 10) {
+                isScrolling = true;
+                target.classList.remove('touching');
+                console.log('Scrolling detected, cancelling touch action');
+            }
         }
     }, { passive: true });
     
@@ -1748,16 +1782,40 @@ function setupEventDelegation() {
         const target = e.target.closest('[data-action]') || e.target;
         if (target.hasAttribute('data-action')) {
             target.classList.remove('touching');
-            console.log('Touch end on:', target.getAttribute('data-action'));
             
-            // Prevent double-firing on Android
-            e.preventDefault();
+            const touchEndTime = Date.now();
+            const touchDuration = touchEndTime - touchStartTime;
             
-            // Small delay to ensure touch is processed properly on Android
-            setTimeout(() => {
-                const clickEvent = new Event('click', { bubbles: true, cancelable: true });
-                target.dispatchEvent(clickEvent);
-            }, 100);
+            console.log('Touch end on:', target.getAttribute('data-action'), {
+                duration: touchDuration,
+                isScrolling: isScrolling
+            });
+            
+            // Only trigger action if:
+            // 1. Not scrolling
+            // 2. Touch duration is reasonable (50ms - 500ms)
+            // 3. Not too quick (prevents accidental triggers)
+            if (!isScrolling && touchDuration >= 50 && touchDuration <= 500) {
+                console.log('Valid tap detected, triggering action');
+                
+                // Prevent double-firing on Android
+                e.preventDefault();
+                
+                // Small delay to ensure touch is processed properly on Android
+                setTimeout(() => {
+                    const clickEvent = new Event('click', { bubbles: true, cancelable: true });
+                    target.dispatchEvent(clickEvent);
+                }, 50);
+            } else {
+                console.log('Invalid tap detected:', {
+                    reason: isScrolling ? 'scrolling' : touchDuration < 50 ? 'too quick' : 'too long',
+                    duration: touchDuration
+                });
+            }
+            
+            // Reset tracking variables
+            touchStartTime = 0;
+            isScrolling = false;
         }
     }, { passive: false });
     
@@ -1767,6 +1825,10 @@ function setupEventDelegation() {
         if (target.hasAttribute('data-action')) {
             target.classList.remove('touching');
             console.log('Touch cancelled on:', target.getAttribute('data-action'));
+            
+            // Reset tracking variables
+            touchStartTime = 0;
+            isScrolling = false;
         }
     }, { passive: true });
     
@@ -1784,6 +1846,20 @@ function setupEventDelegation() {
         [data-action] {
             cursor: pointer;
             -webkit-tap-highlight-color: rgba(0,0,0,0.1);
+        }
+        
+        /* Improve scroll performance on Android */
+        .recipe-card {
+            -webkit-overflow-scrolling: touch;
+            transform: translateZ(0);
+        }
+        
+        /* Prevent text selection during scroll */
+        .recipe-header {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
         }
     `;
     document.head.appendChild(style);
