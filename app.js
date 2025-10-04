@@ -142,6 +142,7 @@ function setupForms() {
     document.getElementById('recipe-form').addEventListener('submit', handleRecipeSubmit);
     document.getElementById('add-recipe-item').addEventListener('click', addRecipeItem);
     document.getElementById('add-variation').addEventListener('click', addRecipeVariation);
+    setupRecipeNameCapitalization();
 }
 
 // Keyboard shortcuts setup
@@ -277,6 +278,59 @@ function reloadForUpdate() {
 
 function dismissUpdate(button) {
     button.closest('.update-notification').remove();
+}
+
+// Recipe Name Capitalization Setup
+function setupRecipeNameCapitalization() {
+    const recipeNameInput = document.getElementById('recipe-name');
+    
+    if (recipeNameInput) {
+        recipeNameInput.addEventListener('input', (e) => {
+            const input = e.target;
+            const value = input.value;
+            
+            if (value.length > 0) {
+                // Capitalize first letter of each word while preserving user input
+                const words = value.split(' ');
+                const capitalizedWords = words.map(word => {
+                    if (word.length > 0) {
+                        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+                    }
+                    return word;
+                });
+                
+                const capitalizedValue = capitalizedWords.join(' ');
+                
+                // Only update if the value actually changed to avoid cursor jumping
+                if (value !== capitalizedValue) {
+                    const cursorPosition = input.selectionStart;
+                    input.value = capitalizedValue;
+                    // Restore cursor position
+                    input.setSelectionRange(cursorPosition, cursorPosition);
+                }
+            }
+        });
+        
+        // Also handle paste events
+        recipeNameInput.addEventListener('paste', (e) => {
+            setTimeout(() => {
+                const input = e.target;
+                const value = input.value;
+                
+                if (value.length > 0) {
+                    const words = value.split(' ');
+                    const capitalizedWords = words.map(word => {
+                        if (word.length > 0) {
+                            return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+                        }
+                        return word;
+                    });
+                    
+                    input.value = capitalizedWords.join(' ');
+                }
+            }, 10); // Small delay to allow paste to complete
+        });
+    }
 }
 
 // Offline Detection

@@ -497,6 +497,11 @@ tr:last-child td {
     position: relative;
 }
 
+/* Auto-capitalize recipe name */
+#recipe-name {
+    text-transform: capitalize;
+}
+
 /* Suggestions */
 .suggestions {
     position: absolute;
