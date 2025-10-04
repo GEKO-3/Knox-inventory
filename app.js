@@ -949,9 +949,9 @@ function renderStockTable() {
             <td>${item.amountUsed.toFixed(2)}</td>
             <td>${lastUpdated}</td>
             <td>
-                <button class="btn-minus" onclick="decreaseStock('${item.id}')">-</button>
-                <button class="btn-secondary" onclick="viewStockLog('${item.id}')">Log</button>
-                <button class="btn-remove" onclick="deleteStockItem('${item.id}')">Delete</button>
+                <button class="btn-minus decrease-stock-btn" data-stock-id="${item.id}" data-action="decrease-stock">-</button>
+                <button class="btn-secondary view-log-btn" data-stock-id="${item.id}" data-action="view-log">Log</button>
+                <button class="btn-remove delete-stock-btn" data-stock-id="${item.id}" data-action="delete-stock">Delete</button>
             </td>
         `;
         tbody.appendChild(row);
@@ -975,7 +975,7 @@ function renderStockTiles(items) {
         const card = document.createElement('div');
         card.className = 'recipe-card';
         card.innerHTML = `
-            <div class="recipe-header" onclick="toggleStockDetails('${item.id}')">
+            <div class="recipe-header toggle-stock-details" data-stock-id="${item.id}" data-action="toggle-stock">
                 <h3>${item.supplyItemName}</h3>
                 <div class="recipe-summary">
                     <span>In Stock: ${item.amountInStock.toFixed(2)}</span>
@@ -985,9 +985,9 @@ function renderStockTiles(items) {
             </div>
             <div class="recipe-details" id="stock-details-${item.id}">
                 <div class="form-actions">
-                    <button class="btn-secondary" onclick="decreaseStock('${item.id}')">Use Stock</button>
-                    <button class="btn-secondary" onclick="viewStockLog('${item.id}')">View Log</button>
-                    <button class="btn-remove" onclick="deleteStockItem('${item.id}')">Delete</button>
+                    <button class="btn-secondary decrease-stock-btn" data-stock-id="${item.id}" data-action="decrease-stock">Use Stock</button>
+                    <button class="btn-secondary view-log-btn" data-stock-id="${item.id}" data-action="view-log">View Log</button>
+                    <button class="btn-remove delete-stock-btn" data-stock-id="${item.id}" data-action="delete-stock">Delete</button>
                 </div>
             </div>
         `;
@@ -1415,7 +1415,7 @@ function renderRecipeList() {
         const card = document.createElement('div');
         card.className = 'recipe-card';
         card.innerHTML = `
-            <div class="recipe-header" onclick="toggleRecipeDetails('${recipe.id}')">
+            <div class="recipe-header toggle-recipe-details" data-recipe-id="${recipe.id}" data-action="toggle-recipe">
                 <h3>${recipe.name}</h3>
                 <div class="recipe-summary">
                     <span>Category: ${recipe.category}</span>
@@ -1450,8 +1450,8 @@ function renderRecipeList() {
                     </div>
                 ` : ''}
                 <div class="form-actions">
-                    <button class="btn-secondary" onclick="editRecipe('${recipe.id}')">Edit</button>
-                    <button class="btn-remove" onclick="deleteRecipe('${recipe.id}')">Delete</button>
+                    <button class="btn-secondary edit-recipe-btn" data-recipe-id="${recipe.id}" data-action="edit-recipe">Edit</button>
+                    <button class="btn-remove delete-recipe-btn" data-recipe-id="${recipe.id}" data-action="delete-recipe">Delete</button>
                 </div>
             </div>
         `;
@@ -1735,8 +1735,13 @@ function setupEventDelegation() {
         const target = e.target;
         const action = target.getAttribute('data-action');
         const supplyId = target.getAttribute('data-supply-id');
+        const recipeId = target.getAttribute('data-recipe-id');
+        const stockId = target.getAttribute('data-stock-id');
         
-        if (!action || !supplyId) return;
+        // Check if we have any valid action and ID
+        if (!action || (!supplyId && !recipeId && !stockId)) return;
+        
+        const itemId = supplyId || recipeId || stockId;
         
         // Multiple checks to prevent expansion during scrolling
         if (isScrolling) {
@@ -1758,32 +1763,50 @@ function setupEventDelegation() {
         e.preventDefault();
         e.stopPropagation();
         
-        console.log('Event delegation triggered:', { action, supplyId, target: target.className });
+        console.log('Event delegation triggered:', { action, itemId, target: target.className });
         
         switch(action) {
             case 'edit':
-                console.log('Event delegation: calling editSupplyItem with', supplyId);
+                console.log('Event delegation: calling editSupplyItem with', itemId);
                 if (window.editSupplyItem) {
-                    window.editSupplyItem(supplyId);
+                    window.editSupplyItem(itemId);
                 } else {
                     console.error('editSupplyItem function not available');
                 }
                 break;
                 
             case 'delete':
-                console.log('Event delegation: calling deleteSupplyItem with', supplyId);
+                console.log('Event delegation: calling deleteSupplyItem with', itemId);
                 if (window.deleteSupplyItem) {
-                    window.deleteSupplyItem(supplyId);
+                    window.deleteSupplyItem(itemId);
                 } else {
                     console.error('deleteSupplyItem function not available');
                 }
                 break;
                 
+            case 'edit-recipe':
+                console.log('Event delegation: calling editRecipe with', itemId);
+                if (window.editRecipe) {
+                    window.editRecipe(itemId);
+                } else {
+                    console.error('editRecipe function not available');
+                }
+                break;
+                
+            case 'delete-recipe':
+                console.log('Event delegation: calling deleteRecipe with', itemId);
+                if (window.deleteRecipe) {
+                    window.deleteRecipe(itemId);
+                } else {
+                    console.error('deleteRecipe function not available');
+                }
+                break;
+                
             case 'toggle':
-                console.log('Event delegation: calling toggleSupplyDetails with', supplyId);
+                console.log('Event delegation: calling toggleSupplyDetails with', itemId);
                 if (window.toggleSupplyDetails) {
                     // Prevent rapid firing by checking if already animating
-                    const details = document.getElementById(`supply-details-${supplyId}`);
+                    const details = document.getElementById(`supply-details-${itemId}`);
                     if (details && !details.classList.contains('animating')) {
                         details.classList.add('animating');
                         setTimeout(() => {
@@ -1792,13 +1815,86 @@ function setupEventDelegation() {
                         
                         // Add small delay for Android touch processing
                         setTimeout(() => {
-                            window.toggleSupplyDetails(supplyId);
+                            window.toggleSupplyDetails(itemId);
                         }, 50);
                     } else {
                         console.log('Animation already in progress, ignoring toggle');
                     }
                 } else {
                     console.error('toggleSupplyDetails function not available');
+                }
+                break;
+                
+            case 'toggle-recipe':
+                console.log('Event delegation: calling toggleRecipeDetails with', itemId);
+                if (window.toggleRecipeDetails) {
+                    // Prevent rapid firing by checking if already animating
+                    const details = document.getElementById(`recipe-details-${itemId}`);
+                    if (details && !details.classList.contains('animating')) {
+                        details.classList.add('animating');
+                        setTimeout(() => {
+                            details.classList.remove('animating');
+                        }, 600); // Match animation duration
+                        
+                        // Add small delay for Android touch processing
+                        setTimeout(() => {
+                            window.toggleRecipeDetails(itemId);
+                        }, 50);
+                    } else {
+                        console.log('Recipe animation already in progress, ignoring toggle');
+                    }
+                } else {
+                    console.error('toggleRecipeDetails function not available');
+                }
+                break;
+                
+            case 'decrease-stock':
+                console.log('Event delegation: calling decreaseStock with', itemId);
+                if (window.decreaseStock) {
+                    window.decreaseStock(itemId);
+                } else {
+                    console.error('decreaseStock function not available');
+                }
+                break;
+                
+            case 'view-log':
+                console.log('Event delegation: calling viewStockLog with', itemId);
+                if (window.viewStockLog) {
+                    window.viewStockLog(itemId);
+                } else {
+                    console.error('viewStockLog function not available');
+                }
+                break;
+                
+            case 'delete-stock':
+                console.log('Event delegation: calling deleteStockItem with', itemId);
+                if (window.deleteStockItem) {
+                    window.deleteStockItem(itemId);
+                } else {
+                    console.error('deleteStockItem function not available');
+                }
+                break;
+                
+            case 'toggle-stock':
+                console.log('Event delegation: calling toggleStockDetails with', itemId);
+                if (window.toggleStockDetails) {
+                    // Prevent rapid firing by checking if already animating
+                    const details = document.getElementById(`stock-details-${itemId}`);
+                    if (details && !details.classList.contains('animating')) {
+                        details.classList.add('animating');
+                        setTimeout(() => {
+                            details.classList.remove('animating');
+                        }, 600); // Match animation duration
+                        
+                        // Add small delay for Android touch processing
+                        setTimeout(() => {
+                            window.toggleStockDetails(itemId);
+                        }, 50);
+                    } else {
+                        console.log('Stock animation already in progress, ignoring toggle');
+                    }
+                } else {
+                    console.error('toggleStockDetails function not available');
                 }
                 break;
         }
