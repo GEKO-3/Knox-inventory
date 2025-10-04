@@ -119,6 +119,7 @@ function setupForms() {
     // Recipe form
     document.getElementById('recipe-form').addEventListener('submit', handleRecipeSubmit);
     document.getElementById('add-recipe-item').addEventListener('click', addRecipeItem);
+    setupCategorySuggestions();
 }
 
 // Keyboard shortcuts setup
@@ -355,6 +356,65 @@ function setupStockDropdown() {
 
 function getSupplyItemById(id) {
     return supplyItems.find(item => item.id === id);
+}
+
+// Category suggestions setup
+function setupCategorySuggestions() {
+    const categoryInput = document.getElementById('recipe-category');
+    const suggestionsContainer = document.getElementById('category-suggestions');
+    
+    categoryInput.addEventListener('input', (e) => {
+        const value = e.target.value.toLowerCase();
+        showCategorySuggestions(value, suggestionsContainer);
+    });
+    
+    categoryInput.addEventListener('focus', (e) => {
+        const value = e.target.value.toLowerCase();
+        showCategorySuggestions(value, suggestionsContainer);
+    });
+    
+    // Hide suggestions when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!categoryInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
+            suggestionsContainer.style.display = 'none';
+        }
+    });
+}
+
+function getExistingCategories() {
+    const categories = new Set();
+    recipes.forEach(recipe => {
+        if (recipe.category && recipe.category.trim()) {
+            categories.add(recipe.category.trim());
+        }
+    });
+    return Array.from(categories).sort();
+}
+
+function showCategorySuggestions(inputValue, container) {
+    const existingCategories = getExistingCategories();
+    const filteredCategories = existingCategories.filter(category => 
+        category.toLowerCase().includes(inputValue)
+    );
+    
+    if (filteredCategories.length === 0 || (filteredCategories.length === 1 && filteredCategories[0].toLowerCase() === inputValue)) {
+        container.style.display = 'none';
+        return;
+    }
+    
+    container.innerHTML = '';
+    filteredCategories.forEach(category => {
+        const suggestionItem = document.createElement('div');
+        suggestionItem.className = 'suggestion-item';
+        suggestionItem.textContent = category;
+        suggestionItem.addEventListener('click', () => {
+            document.getElementById('recipe-category').value = category;
+            container.style.display = 'none';
+        });
+        container.appendChild(suggestionItem);
+    });
+    
+    container.style.display = filteredCategories.length > 0 ? 'block' : 'none';
 }
 
 async function handleStockSubmit(e) {

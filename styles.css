@@ -416,6 +416,11 @@ tr:last-child td {
     }
 }
 
+/* Input with suggestions container */
+.input-with-suggestions {
+    position: relative;
+}
+
 /* Suggestions */
 .suggestions {
     position: absolute;
