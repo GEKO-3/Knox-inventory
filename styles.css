@@ -111,6 +111,11 @@ nav {
     font-weight: 500;
     transition: all 0.3s ease;
     box-shadow: 0 4px 8px rgba(213, 138, 148, 0.3);
+    /* Android touch improvements */
+    -webkit-tap-highlight-color: rgba(213, 138, 148, 0.3);
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .btn-primary:hover {
@@ -127,6 +132,12 @@ nav {
     cursor: pointer;
     font-size: 0.9rem;
     transition: all 0.3s ease;
+    /* Android touch improvements */
+    -webkit-tap-highlight-color: rgba(245, 245, 245, 0.5);
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+    min-height: 44px; /* Minimum touch target size for mobile */
 }
 
 .btn-secondary:hover {
@@ -138,11 +149,18 @@ nav {
     background: #ff6b6b;
     color: white;
     border: none;
-    padding: 6px 12px;
+    padding: 8px 16px;
     border-radius: 15px;
     cursor: pointer;
     font-size: 0.8rem;
     transition: all 0.3s ease;
+    /* Android touch improvements */
+    -webkit-tap-highlight-color: rgba(255, 107, 107, 0.3);
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+    min-height: 44px; /* Minimum touch target size for mobile */
+    min-width: 44px;
 }
 
 .btn-remove:hover {

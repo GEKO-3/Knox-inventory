@@ -14,8 +14,11 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
+console.log('Initializing Firebase...');
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+console.log('Firebase initialized, database:', db);
 
 // Export for use in other modules
 window.db = db;
+console.log('Firebase database assigned to window.db');

@@ -17,18 +17,47 @@ let recipes = [];
 let currentEditingId = null;
 
 // Initialize the app
-document.addEventListener('DOMContentLoaded', function() {
-    initializeApp();
-    registerServiceWorker();
+// Enhanced DOM ready detection for Android compatibility
+function initWhenReady() {
+    console.log('DOM loaded, initializing app...');
+    console.log('Firebase db available:', !!window.db);
+    
+    // Add small delay for Android devices to ensure everything is ready
+    setTimeout(() => {
+        initializeApp();
+        registerServiceWorker();
+    }, 100);
+}
+
+// Multiple event listeners for better Android compatibility
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initWhenReady);
+} else {
+    initWhenReady();
+}
+
+// Fallback for older Android browsers
+window.addEventListener('load', function() {
+    if (!window.appInitialized) {
+        initWhenReady();
+    }
 });
 
 function initializeApp() {
+    if (window.appInitialized) {
+        console.log('App already initialized, skipping...');
+        return;
+    }
+    
+    console.log('Initializing app...');
     setupNavigation();
     setupModals();
     setupForms();
     setupKeyboardShortcuts();
-    setupOfflineDetection();
     loadData();
+    
+    window.appInitialized = true;
+    console.log('App initialization complete');
 }
 
 // Navigation
@@ -333,40 +362,7 @@ function setupRecipeNameCapitalization() {
     }
 }
 
-// Offline Detection
-function setupOfflineDetection() {
-    function updateOnlineStatus() {
-        const isOnline = navigator.onLine;
-        const indicator = document.getElementById('offline-indicator') || createOfflineIndicator();
-        
-        if (isOnline) {
-            indicator.style.display = 'none';
-            document.body.classList.remove('offline');
-        } else {
-            indicator.style.display = 'flex';
-            document.body.classList.add('offline');
-        }
-    }
-    
-    function createOfflineIndicator() {
-        const indicator = document.createElement('div');
-        indicator.id = 'offline-indicator';
-        indicator.className = 'offline-indicator';
-        indicator.innerHTML = `
-            <span>📡 You're offline</span>
-            <small>Some features may be limited</small>
-        `;
-        document.body.appendChild(indicator);
-        return indicator;
-    }
-    
-    // Initial check
-    updateOnlineStatus();
-    
-    // Listen for online/offline events
-    window.addEventListener('online', updateOnlineStatus);
-    window.addEventListener('offline', updateOnlineStatus);
-}
+// Offline detection functions removed
 
 // Recipe Form Reset Function
 function resetRecipeForm() {
@@ -441,17 +437,20 @@ async function handleSupplySubmit(e) {
 
 async function loadSupplyData() {
     try {
+        console.log('Loading supply data...');
         const supplyRef = ref(window.db, 'supply');
         const snapshot = await get(supplyRef);
         supplyItems = [];
         
         if (snapshot.exists()) {
             const data = snapshot.val();
+            console.log('Firebase data:', data);
             Object.keys(data).forEach(key => {
                 supplyItems.push({ id: key, ...data[key] });
             });
         }
         
+        console.log('Final supplyItems:', supplyItems);
         renderSupplyTable();
     } catch (error) {
         console.error('Error loading supply data:', error);
@@ -459,6 +458,7 @@ async function loadSupplyData() {
 }
 
 function renderSupplyTable() {
+    console.log('Rendering supply table with items:', supplyItems.length);
     const tbody = document.getElementById('supply-tbody');
     tbody.innerHTML = '';
     
@@ -495,8 +495,8 @@ function renderSupplyTable() {
             <td>${item.measurePerProduct}</td>
             <td>${item.productsPerUnit.toFixed(2)}</td>
             <td>
-                <button class="btn-secondary" onclick="editSupplyItem('${item.id}')">Edit</button>
-                <button class="btn-remove" onclick="deleteSupplyItem('${item.id}')">Delete</button>
+                <button class="btn-secondary" onclick="editSupplyItem('${item.id}')" ontouchstart="this.onclick">Edit</button>
+                <button class="btn-remove" onclick="deleteSupplyItem('${item.id}')" ontouchstart="this.onclick">Delete</button>
             </td>
         `;
         tbody.appendChild(row);
@@ -519,7 +519,7 @@ function renderSupplyTiles(items) {
         const card = document.createElement('div');
         card.className = 'recipe-card';
         card.innerHTML = `
-            <div class="recipe-header" onclick="toggleSupplyDetails('${item.id}')">
+            <div class="recipe-header" onclick="toggleSupplyDetails('${item.id}')" ontouchstart="this.onclick">
                 <h3>${item.name}</h3>
                 <div class="recipe-summary">
                     <span>Price + GST: ${item.priceWithGST.toFixed(2)}</span>
@@ -550,8 +550,8 @@ function renderSupplyTiles(items) {
                     </div>
                 </div>
                 <div class="form-actions">
-                    <button class="btn-secondary" onclick="editSupplyItem('${item.id}')">Edit</button>
-                    <button class="btn-remove" onclick="deleteSupplyItem('${item.id}')">Delete</button>
+                    <button class="btn-secondary" onclick="editSupplyItem('${item.id}')" ontouchstart="this.onclick">Edit</button>
+                    <button class="btn-remove" onclick="deleteSupplyItem('${item.id}')" ontouchstart="this.onclick">Delete</button>
                 </div>
             </div>
         `;
@@ -569,19 +569,41 @@ function toggleStockDetails(id) {
     details.classList.toggle('show');
 }
 
-
-
 async function editSupplyItem(id) {
-    const item = supplyItems.find(item => item.id === id);
-    if (!item) return;
+    console.log('editSupplyItem called with id:', id);
+    console.log('supplyItems:', supplyItems);
     
-    document.getElementById('supply-name').value = item.name;
-    document.getElementById('supply-price').value = item.price;
-    document.getElementById('supply-size').value = item.size;
-    document.getElementById('supply-measure').value = item.measurePerProduct;
+    const item = supplyItems.find(item => item.id === id);
+    console.log('found item:', item);
+    if (!item) {
+        console.error('Item not found with id:', id);
+        return;
+    }
+    
+    // Ensure modal elements exist before trying to access them
+    const modal = document.getElementById('supply-modal');
+    const nameField = document.getElementById('supply-name');
+    const priceField = document.getElementById('supply-price');
+    const sizeField = document.getElementById('supply-size');
+    const measureField = document.getElementById('supply-measure');
+    
+    if (!modal || !nameField || !priceField || !sizeField || !measureField) {
+        console.error('Modal elements not found');
+        return;
+    }
+    
+    nameField.value = item.name;
+    priceField.value = item.price;
+    sizeField.value = item.size;
+    measureField.value = item.measurePerProduct;
     
     currentEditingId = id;
-    document.getElementById('supply-modal').style.display = 'block';
+    modal.style.display = 'block';
+    
+    // Focus on first field for better mobile experience
+    setTimeout(() => {
+        nameField.focus();
+    }, 100);
 }
 
 async function deleteSupplyItem(id) {
@@ -1476,11 +1498,33 @@ async function loadData() {
     await loadRecipeData();
     // Setup category suggestions after recipe data is loaded
     setupCategorySuggestions();
+    
+    // Debug: Test if functions are available
+    console.log('editSupplyItem function available:', typeof window.editSupplyItem);
+    console.log('deleteSupplyItem function available:', typeof window.deleteSupplyItem);
 }
 
 // Make functions globally available
 window.editSupplyItem = editSupplyItem;
 window.deleteSupplyItem = deleteSupplyItem;
+
+// Test function to debug
+window.testEditFunction = function() {
+    console.log('Test function called');
+    console.log('supplyItems length:', supplyItems.length);
+    if (supplyItems.length > 0) {
+        console.log('Testing edit with first item:', supplyItems[0]);
+        editSupplyItem(supplyItems[0].id);
+    } else {
+        console.log('No supply items found');
+    }
+};
+
+// Test if functions are callable at all
+window.simpleTest = function() {
+    alert('Simple test function works!');
+    console.log('Simple test called');
+};
 window.toggleSupplyDetails = toggleSupplyDetails;
 window.toggleStockDetails = toggleStockDetails;
 window.decreaseStock = decreaseStock;

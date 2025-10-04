@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>Knox Inventory System</title>
     
     <!-- PWA Meta Tags -->
@@ -48,6 +50,7 @@
                 <h2>Supply Management</h2>
                 <div class="page-controls">
                     <button class="btn-primary" id="add-supply-btn">Add Supply Item</button>
+                    <button class="btn-secondary" onclick="window.simpleTest()">Test Button</button>
                 </div>
                 <div class="table-container">
                     <table id="supply-table">
@@ -236,5 +239,11 @@
     <!-- Firebase SDK -->
     <script type="module" src="firebase-config.js"></script>
     <script type="module" src="app.js"></script>
+    
+    <!-- Fallback for older Android browsers -->
+    <script nomodule>
+        console.warn('ES6 modules not supported. Please update your browser for the best experience.');
+        document.body.innerHTML = '<div style="padding: 20px; text-align: center; font-family: Arial, sans-serif;"><h2>Browser Update Required</h2><p>This app requires a modern browser that supports ES6 modules. Please update your browser to use this application.</p></div>';
+    </script>
 </body>
 </html>
