@@ -19,6 +19,7 @@ let currentEditingId = null;
 // Initialize the app
 document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
+    registerServiceWorker();
 });
 
 function initializeApp() {
@@ -26,6 +27,7 @@ function initializeApp() {
     setupModals();
     setupForms();
     setupKeyboardShortcuts();
+    setupOfflineDetection();
     loadData();
 }
 
@@ -168,6 +170,148 @@ function setupKeyboardShortcuts() {
             }, 100);
         }
     });
+}
+
+// PWA Service Worker Registration
+async function registerServiceWorker() {
+    if ('serviceWorker' in navigator) {
+        try {
+            const registration = await navigator.serviceWorker.register('./sw.js');
+            console.log('Service Worker registered successfully:', registration);
+            
+            // Check for updates
+            registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        // New version available
+                        showUpdateNotification();
+                    }
+                });
+            });
+        } catch (error) {
+            console.error('Service Worker registration failed:', error);
+        }
+    }
+    
+    // PWA Install prompt
+    setupPWAInstall();
+}
+
+function setupPWAInstall() {
+    let deferredPrompt;
+    
+    window.addEventListener('beforeinstallprompt', (e) => {
+        console.log('PWA install prompt triggered');
+        e.preventDefault();
+        deferredPrompt = e;
+        showInstallButton();
+    });
+    
+    // Handle successful installation
+    window.addEventListener('appinstalled', () => {
+        console.log('PWA installed successfully');
+        hideInstallButton();
+        // You could show a thank you message here
+    });
+    
+    function showInstallButton() {
+        // Create install button if it doesn't exist
+        if (!document.getElementById('install-btn')) {
+            const installBtn = document.createElement('button');
+            installBtn.id = 'install-btn';
+            installBtn.className = 'btn-primary install-btn';
+            installBtn.innerHTML = '📱 Install App';
+            installBtn.title = 'Install Knox Inventory as an app';
+            
+            installBtn.addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log('PWA install outcome:', outcome);
+                    deferredPrompt = null;
+                    hideInstallButton();
+                }
+            });
+            
+            // Add to header
+            const header = document.querySelector('header nav');
+            if (header) {
+                header.appendChild(installBtn);
+            }
+        }
+    }
+    
+    function hideInstallButton() {
+        const installBtn = document.getElementById('install-btn');
+        if (installBtn) {
+            installBtn.remove();
+        }
+    }
+}
+
+function showUpdateNotification() {
+    // Create update notification
+    const notification = document.createElement('div');
+    notification.className = 'update-notification';
+    notification.innerHTML = `
+        <div class="update-content">
+            <span>🔄 New version available!</span>
+            <button onclick="reloadForUpdate()" class="btn-primary">Update</button>
+            <button onclick="dismissUpdate(this)" class="btn-secondary">Later</button>
+        </div>
+    `;
+    document.body.appendChild(notification);
+    
+    // Auto-hide after 10 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 10000);
+}
+
+function reloadForUpdate() {
+    window.location.reload();
+}
+
+function dismissUpdate(button) {
+    button.closest('.update-notification').remove();
+}
+
+// Offline Detection
+function setupOfflineDetection() {
+    function updateOnlineStatus() {
+        const isOnline = navigator.onLine;
+        const indicator = document.getElementById('offline-indicator') || createOfflineIndicator();
+        
+        if (isOnline) {
+            indicator.style.display = 'none';
+            document.body.classList.remove('offline');
+        } else {
+            indicator.style.display = 'flex';
+            document.body.classList.add('offline');
+        }
+    }
+    
+    function createOfflineIndicator() {
+        const indicator = document.createElement('div');
+        indicator.id = 'offline-indicator';
+        indicator.className = 'offline-indicator';
+        indicator.innerHTML = `
+            <span>📡 You're offline</span>
+            <small>Some features may be limited</small>
+        `;
+        document.body.appendChild(indicator);
+        return indicator;
+    }
+    
+    // Initial check
+    updateOnlineStatus();
+    
+    // Listen for online/offline events
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
 }
 
 // Recipe Form Reset Function

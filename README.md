@@ -1,6 +1,15 @@
-# Knox Inventory System
+# Knox Inventory System - Progressive Web App
 
-A comprehensive web-based inventory management system built with Firebase, featuring supply management, stock tracking, recipe creation, and product profitability analysis.
+A comprehensive web-based inventory management system built with Firebase, featuring supply management, stock tracking, recipe creation, and product profitability analysis. Now available as a Progressive Web App (PWA) for installation on any device!
+
+## 🚀 PWA Features
+
+- **📱 Installable**: Install directly from your browser on any device
+- **⚡ Offline Support**: Core functionality works offline with service worker caching
+- **🔄 Auto-Updates**: Automatic updates when new versions are available
+- **📲 Native Feel**: Runs like a native app when installed
+- **🏠 Home Screen**: Add to home screen on mobile devices
+- **🎨 Themed**: Matches your device's theme and status bar
 
 ## Features
 
@@ -134,12 +143,39 @@ The system uses three main Realtime Database nodes:
 - Touch-friendly interface for mobile use
 - Optimized table layouts for different screen sizes
 
-## Browser Compatibility
+## 📱 PWA Installation
 
-- Chrome (recommended)
-- Firefox
-- Safari
-- Edge
+### Desktop (Chrome, Edge, Safari)
+1. Visit the app in your browser
+2. Look for the "📱 Install App" button in the navigation
+3. Click "Install" to add to your desktop
+
+### Mobile (iOS Safari)
+1. Visit the app in Safari
+2. Tap the Share button (square with arrow up)
+3. Tap "Add to Home Screen"
+4. Tap "Add" to install
+
+### Mobile (Android Chrome)
+1. Visit the app in Chrome
+2. Tap the menu (three dots) or look for install prompt
+3. Tap "Add to Home screen" or "Install app"
+4. Tap "Install" to add to your home screen
+
+## 🌐 Browser Compatibility
+
+- Chrome/Chromium (full PWA support)
+- Firefox (partial PWA support)
+- Safari (iOS PWA support)
+- Edge (full PWA support)
+
+## 📊 Offline Capabilities
+
+- Browse existing cached data
+- View previously loaded inventory items
+- UI remains fully functional offline
+- Automatic sync when connection restored
+- Visual offline indicator with status
 
 ## Support
 
