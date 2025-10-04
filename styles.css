@@ -518,6 +518,46 @@ tr:last-child td {
     }
 }
 
+/* Category Organization Styles */
+.category-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px 0;
+    margin: 30px 0 15px 0;
+    border-bottom: 3px solid #D58A94;
+    background: linear-gradient(90deg, rgba(213, 138, 148, 0.1), transparent);
+}
+
+.category-header:first-of-type {
+    margin-top: 0;
+}
+
+.category-title {
+    color: #D58A94;
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.category-count {
+    color: #666;
+    font-size: 0.9rem;
+    font-weight: 500;
+    background: rgba(213, 138, 148, 0.1);
+    padding: 4px 8px;
+    border-radius: 12px;
+}
+
+.category-recipes {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 40px;
+}
+
 /* Input with suggestions container */
 .input-with-suggestions {
     position: relative;

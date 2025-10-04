@@ -1428,51 +1428,86 @@ function renderRecipeList() {
         return;
     }
     
+    // Group recipes by category and sort alphabetically
+    const recipesByCategory = {};
+    
     recipes.forEach(recipe => {
-        const card = document.createElement('div');
-        card.className = 'recipe-card';
-        card.innerHTML = `
-            <div class="recipe-header toggle-recipe-details" data-recipe-id="${recipe.id}" data-action="toggle-recipe">
-                <h3>${recipe.name}</h3>
-                <div class="recipe-summary">
-                    <span>Category: ${recipe.category}</span>
-                    <span>Cost: ${recipe.totalCost.toFixed(2)}</span>
-                    <span>Price: ${recipe.sellingPrice.toFixed(2)}</span>
-                    <span>Profit: ${(recipe.sellingPrice - recipe.totalCost).toFixed(2)}</span>
-                </div>
-            </div>
-            <div class="recipe-details" id="recipe-details-${recipe.id}">
-                <div class="recipe-items">
-                    <h4>Items:</h4>
-                    <div class="recipe-details-grid">
-                        ${recipe.items.map(item => `
-                            <div class="recipe-item-display">
-                                <span>${item.itemName}</span>
-                                <span>Measure: ${item.measure} • Cost: ${item.cost.toFixed(2)}</span>
-                            </div>
-                        `).join('')}
+        const category = recipe.category || 'Uncategorized';
+        if (!recipesByCategory[category]) {
+            recipesByCategory[category] = [];
+        }
+        recipesByCategory[category].push(recipe);
+    });
+    
+    // Sort categories alphabetically and sort recipes within each category
+    const sortedCategories = Object.keys(recipesByCategory).sort();
+    
+    sortedCategories.forEach(categoryName => {
+        // Sort recipes within category alphabetically by name
+        const sortedRecipes = recipesByCategory[categoryName].sort((a, b) => 
+            a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+        );
+        
+        // Create category header
+        const categoryHeader = document.createElement('div');
+        categoryHeader.className = 'category-header';
+        categoryHeader.innerHTML = `
+            <h2 class="category-title">${categoryName}</h2>
+            <span class="category-count">(${sortedRecipes.length} recipe${sortedRecipes.length !== 1 ? 's' : ''})</span>
+        `;
+        container.appendChild(categoryHeader);
+        
+        // Create category container
+        const categoryContainer = document.createElement('div');
+        categoryContainer.className = 'category-recipes';
+        
+        sortedRecipes.forEach(recipe => {
+            const card = document.createElement('div');
+            card.className = 'recipe-card';
+            card.innerHTML = `
+                <div class="recipe-header toggle-recipe-details" data-recipe-id="${recipe.id}" data-action="toggle-recipe">
+                    <h3>${recipe.name}</h3>
+                    <div class="recipe-summary">
+                        <span>Cost: ${recipe.totalCost.toFixed(2)}</span>
+                        <span>Price: ${recipe.sellingPrice.toFixed(2)}</span>
+                        <span>Profit: ${(recipe.sellingPrice - recipe.totalCost).toFixed(2)}</span>
                     </div>
                 </div>
-                ${recipe.variations && recipe.variations.length > 0 ? `
-                    <div class="recipe-variations-display">
-                        <h4>Variations:</h4>
+                <div class="recipe-details" id="recipe-details-${recipe.id}">
+                    <div class="recipe-items">
+                        <h4>Items:</h4>
                         <div class="recipe-details-grid">
-                            ${recipe.variations.map(variation => `
+                            ${recipe.items.map(item => `
                                 <div class="recipe-item-display">
-                                    <span>${variation.name}</span>
-                                    <span>Price: ${variation.sellingPrice.toFixed(2)} • Profit: ${(variation.sellingPrice - variation.totalCost).toFixed(2)}</span>
+                                    <span>${item.itemName}</span>
+                                    <span>Measure: ${item.measure} • Cost: ${item.cost.toFixed(2)}</span>
                                 </div>
                             `).join('')}
                         </div>
                     </div>
-                ` : ''}
-                <div class="form-actions">
-                    <button class="btn-secondary edit-recipe-btn" data-recipe-id="${recipe.id}" data-action="edit-recipe">Edit</button>
-                    <button class="btn-remove delete-recipe-btn" data-recipe-id="${recipe.id}" data-action="delete-recipe">Delete</button>
+                    ${recipe.variations && recipe.variations.length > 0 ? `
+                        <div class="recipe-variations-display">
+                            <h4>Variations:</h4>
+                            <div class="recipe-details-grid">
+                                ${recipe.variations.map(variation => `
+                                    <div class="recipe-item-display">
+                                        <span>${variation.name}</span>
+                                        <span>Price: ${variation.sellingPrice.toFixed(2)} • Profit: ${(variation.sellingPrice - variation.totalCost).toFixed(2)}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                    <div class="form-actions">
+                        <button class="btn-secondary edit-recipe-btn" data-recipe-id="${recipe.id}" data-action="edit-recipe">Edit</button>
+                        <button class="btn-remove delete-recipe-btn" data-recipe-id="${recipe.id}" data-action="delete-recipe">Delete</button>
+                    </div>
                 </div>
-            </div>
-        `;
-        container.appendChild(card);
+            `;
+            categoryContainer.appendChild(card);
+        });
+        
+        container.appendChild(categoryContainer);
     });
 }
 
