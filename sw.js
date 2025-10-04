@@ -5,6 +5,7 @@ const urlsToCache = [
   './styles.css',
   './app.js',
   './firebase-config.js',
+  './offline-manager.js',
   './manifest.json',
   // Firebase CDN resources
   'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js',

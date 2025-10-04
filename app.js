@@ -342,7 +342,16 @@ function setupOfflineDetection() {
         if (isOnline) {
             indicator.style.display = 'none';
             document.body.classList.remove('offline');
+            
+            // Trigger sync when coming back online
+            if (window.offlineManager) {
+                setTimeout(() => {
+                    window.offlineManager.syncPendingChanges();
+                }, 1000);
+            }
         } else {
+            const pendingCount = window.offlineManager ? window.offlineManager.getPendingChangesCount() : 0;
+            updateOfflineIndicator(indicator, pendingCount);
             indicator.style.display = 'flex';
             document.body.classList.add('offline');
         }
@@ -352,12 +361,16 @@ function setupOfflineDetection() {
         const indicator = document.createElement('div');
         indicator.id = 'offline-indicator';
         indicator.className = 'offline-indicator';
-        indicator.innerHTML = `
-            <span>📡 You're offline</span>
-            <small>Some features may be limited</small>
-        `;
         document.body.appendChild(indicator);
         return indicator;
+    }
+    
+    function updateOfflineIndicator(indicator, pendingCount) {
+        const pendingText = pendingCount > 0 ? ` • ${pendingCount} changes pending` : '';
+        indicator.innerHTML = `
+            <span>📡 You're offline${pendingText}</span>
+            <small>Changes will sync when reconnected</small>
+        `;
     }
     
     // Initial check
@@ -366,6 +379,17 @@ function setupOfflineDetection() {
     // Listen for online/offline events
     window.addEventListener('online', updateOnlineStatus);
     window.addEventListener('offline', updateOnlineStatus);
+    
+    // Update pending changes count periodically when offline
+    setInterval(() => {
+        if (!navigator.onLine && window.offlineManager) {
+            const indicator = document.getElementById('offline-indicator');
+            if (indicator && indicator.style.display !== 'none') {
+                const pendingCount = window.offlineManager.getPendingChangesCount();
+                updateOfflineIndicator(indicator, pendingCount);
+            }
+        }
+    }, 5000);
 }
 
 // Recipe Form Reset Function
@@ -422,12 +446,22 @@ async function handleSupplySubmit(e) {
     formData.pricePerProduct = formData.priceWithGST / formData.productsPerUnit;
     
     try {
-        if (currentEditingId) {
-            const supplyRef = ref(window.db, `supply/${currentEditingId}`);
-            await update(supplyRef, formData);
+        if (navigator.onLine) {
+            // Online: Save to Firebase directly
+            if (currentEditingId) {
+                const supplyRef = ref(window.db, `supply/${currentEditingId}`);
+                await update(supplyRef, formData);
+            } else {
+                const supplyRef = ref(window.db, 'supply');
+                await push(supplyRef, formData);
+            }
         } else {
-            const supplyRef = ref(window.db, 'supply');
-            await push(supplyRef, formData);
+            // Offline: Queue for sync and apply locally
+            if (window.offlineManager) {
+                const action = currentEditingId ? 'update' : 'create';
+                window.offlineManager.queueChange('supply', action, formData, currentEditingId);
+                window.offlineManager.applyLocalChange('supply', action, formData, currentEditingId);
+            }
         }
         
         document.getElementById('supply-modal').style.display = 'none';
@@ -435,26 +469,57 @@ async function handleSupplySubmit(e) {
         loadSupplyData();
     } catch (error) {
         console.error('Error saving supply item:', error);
-        alert('Error saving supply item. Please try again.');
+        
+        // If Firebase fails, fall back to offline mode
+        if (window.offlineManager) {
+            const action = currentEditingId ? 'update' : 'create';
+            window.offlineManager.queueChange('supply', action, formData, currentEditingId);
+            window.offlineManager.applyLocalChange('supply', action, formData, currentEditingId);
+            
+            document.getElementById('supply-modal').style.display = 'none';
+            currentEditingId = null;
+            loadSupplyData();
+        } else {
+            alert('Error saving supply item. Please try again.');
+        }
     }
 }
 
 async function loadSupplyData() {
     try {
-        const supplyRef = ref(window.db, 'supply');
-        const snapshot = await get(supplyRef);
-        supplyItems = [];
-        
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            Object.keys(data).forEach(key => {
-                supplyItems.push({ id: key, ...data[key] });
-            });
+        // Check if we should use local data (offline or recent local data)
+        if (window.offlineManager && window.offlineManager.shouldUseLocalData('supply')) {
+            console.log('Loading supply data from local storage');
+            supplyItems = window.offlineManager.getFromLocal('supply');
+        } else {
+            // Load from Firebase
+            console.log('Loading supply data from Firebase');
+            const supplyRef = ref(window.db, 'supply');
+            const snapshot = await get(supplyRef);
+            supplyItems = [];
+            
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+                Object.keys(data).forEach(key => {
+                    supplyItems.push({ id: key, ...data[key] });
+                });
+            }
+            
+            // Cache in local storage
+            if (window.offlineManager) {
+                window.offlineManager.saveToLocal('supply', supplyItems);
+            }
         }
         
         renderSupplyTable();
     } catch (error) {
         console.error('Error loading supply data:', error);
+        // Fallback to local data if Firebase fails
+        if (window.offlineManager) {
+            console.log('Falling back to local supply data');
+            supplyItems = window.offlineManager.getFromLocal('supply');
+            renderSupplyTable();
+        }
     }
 }
 
@@ -759,20 +824,39 @@ async function handleStockSubmit(e) {
 
 async function loadStockData() {
     try {
-        const stockRef = ref(window.db, 'stock');
-        const snapshot = await get(stockRef);
-        stockItems = [];
-        
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            Object.keys(data).forEach(key => {
-                stockItems.push({ id: key, ...data[key] });
-            });
+        // Check if we should use local data (offline or recent local data)
+        if (window.offlineManager && window.offlineManager.shouldUseLocalData('stock')) {
+            console.log('Loading stock data from local storage');
+            stockItems = window.offlineManager.getFromLocal('stock');
+        } else {
+            // Load from Firebase
+            console.log('Loading stock data from Firebase');
+            const stockRef = ref(window.db, 'stock');
+            const snapshot = await get(stockRef);
+            stockItems = [];
+            
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+                Object.keys(data).forEach(key => {
+                    stockItems.push({ id: key, ...data[key] });
+                });
+            }
+            
+            // Cache in local storage
+            if (window.offlineManager) {
+                window.offlineManager.saveToLocal('stock', stockItems);
+            }
         }
         
         renderStockTable();
     } catch (error) {
         console.error('Error loading stock data:', error);
+        // Fallback to local data if Firebase fails
+        if (window.offlineManager) {
+            console.log('Falling back to local stock data');
+            stockItems = window.offlineManager.getFromLocal('stock');
+            renderStockTable();
+        }
     }
 }
 
@@ -1241,15 +1325,28 @@ async function handleRecipeSubmit(e) {
 
 async function loadRecipeData() {
     try {
-        const recipeRef = ref(window.db, 'recipes');
-        const snapshot = await get(recipeRef);
-        recipes = [];
-        
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            Object.keys(data).forEach(key => {
-                recipes.push({ id: key, ...data[key] });
-            });
+        // Check if we should use local data (offline or recent local data)
+        if (window.offlineManager && window.offlineManager.shouldUseLocalData('recipes')) {
+            console.log('Loading recipe data from local storage');
+            recipes = window.offlineManager.getFromLocal('recipes');
+        } else {
+            // Load from Firebase
+            console.log('Loading recipe data from Firebase');
+            const recipeRef = ref(window.db, 'recipes');
+            const snapshot = await get(recipeRef);
+            recipes = [];
+            
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+                Object.keys(data).forEach(key => {
+                    recipes.push({ id: key, ...data[key] });
+                });
+            }
+            
+            // Cache in local storage
+            if (window.offlineManager) {
+                window.offlineManager.saveToLocal('recipes', recipes);
+            }
         }
         
         renderRecipeList();
@@ -1258,6 +1355,14 @@ async function loadRecipeData() {
         setupCategorySuggestions();
     } catch (error) {
         console.error('Error loading recipe data:', error);
+        // Fallback to local data if Firebase fails
+        if (window.offlineManager) {
+            console.log('Falling back to local recipe data');
+            recipes = window.offlineManager.getFromLocal('recipes');
+            renderRecipeList();
+            renderProductsTable();
+            setupCategorySuggestions();
+        }
     }
 }
 
@@ -1477,6 +1582,9 @@ async function loadData() {
     // Setup category suggestions after recipe data is loaded
     setupCategorySuggestions();
 }
+
+// Make loadData globally available for offline manager
+window.loadData = loadData;
 
 // Make functions globally available
 window.editSupplyItem = editSupplyItem;
