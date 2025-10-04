@@ -16,17 +16,28 @@ let stockItems = [];
 let recipes = [];
 let currentEditingId = null;
 
+// Early function declarations for Android compatibility
+window.editSupplyItem = null;
+window.deleteSupplyItem = null;
+window.toggleSupplyDetails = null;
+
 // Initialize the app
 // Enhanced DOM ready detection for Android compatibility
 function initWhenReady() {
     console.log('DOM loaded, initializing app...');
+    console.log('User Agent:', navigator.userAgent);
+    console.log('Is Android:', /Android/i.test(navigator.userAgent));
     console.log('Firebase db available:', !!window.db);
+    console.log('Touch support:', 'ontouchstart' in window);
     
     // Add small delay for Android devices to ensure everything is ready
+    const delay = /Android/i.test(navigator.userAgent) ? 300 : 100;
+    console.log('Using initialization delay:', delay + 'ms');
+    
     setTimeout(() => {
         initializeApp();
         registerServiceWorker();
-    }, 100);
+    }, delay);
 }
 
 // Multiple event listeners for better Android compatibility
@@ -50,10 +61,15 @@ function initializeApp() {
     }
     
     console.log('Initializing app...');
+    
+    // Make functions globally available FIRST
+    setupGlobalFunctions();
+    
     setupNavigation();
     setupModals();
     setupForms();
     setupKeyboardShortcuts();
+    setupEventDelegation(); // Add event delegation for Android
     loadData();
     
     window.appInitialized = true;
@@ -495,8 +511,8 @@ function renderSupplyTable() {
             <td>${item.measurePerProduct}</td>
             <td>${item.productsPerUnit.toFixed(2)}</td>
             <td>
-                <button class="btn-secondary" onclick="editSupplyItem('${item.id}')" ontouchstart="this.onclick">Edit</button>
-                <button class="btn-remove" onclick="deleteSupplyItem('${item.id}')" ontouchstart="this.onclick">Delete</button>
+                <button class="btn-secondary edit-supply-btn" data-supply-id="${item.id}" data-action="edit">Edit</button>
+                <button class="btn-remove delete-supply-btn" data-supply-id="${item.id}" data-action="delete">Delete</button>
             </td>
         `;
         tbody.appendChild(row);
@@ -519,7 +535,7 @@ function renderSupplyTiles(items) {
         const card = document.createElement('div');
         card.className = 'recipe-card';
         card.innerHTML = `
-            <div class="recipe-header" onclick="toggleSupplyDetails('${item.id}')" ontouchstart="this.onclick">
+            <div class="recipe-header toggle-supply-details" data-supply-id="${item.id}" data-action="toggle">
                 <h3>${item.name}</h3>
                 <div class="recipe-summary">
                     <span>Price + GST: ${item.priceWithGST.toFixed(2)}</span>
@@ -550,8 +566,8 @@ function renderSupplyTiles(items) {
                     </div>
                 </div>
                 <div class="form-actions">
-                    <button class="btn-secondary" onclick="editSupplyItem('${item.id}')" ontouchstart="this.onclick">Edit</button>
-                    <button class="btn-remove" onclick="deleteSupplyItem('${item.id}')" ontouchstart="this.onclick">Delete</button>
+                    <button class="btn-secondary edit-supply-btn" data-supply-id="${item.id}" data-action="edit">Edit</button>
+                    <button class="btn-remove delete-supply-btn" data-supply-id="${item.id}" data-action="delete">Delete</button>
                 </div>
             </div>
         `;
@@ -1504,37 +1520,130 @@ async function loadData() {
     console.log('deleteSupplyItem function available:', typeof window.deleteSupplyItem);
 }
 
-// Make functions globally available
-window.editSupplyItem = editSupplyItem;
-window.deleteSupplyItem = deleteSupplyItem;
+// Setup global functions for Android compatibility
+function setupGlobalFunctions() {
+    console.log('Setting up global functions...');
+    
+    // Make functions globally available
+    window.editSupplyItem = editSupplyItem;
+    window.deleteSupplyItem = deleteSupplyItem;
+    window.toggleSupplyDetails = toggleSupplyDetails;
+    window.toggleStockDetails = toggleStockDetails;
+    window.decreaseStock = decreaseStock;
+    window.deleteStockItem = deleteStockItem;
+    window.viewStockLog = viewStockLog;
+    window.removeRecipeItem = removeRecipeItem;
+    window.toggleRecipeDetails = toggleRecipeDetails;
+    window.editRecipe = editRecipe;
+    window.deleteRecipe = deleteRecipe;
+    window.addRecipeVariation = addRecipeVariation;
+    window.removeVariation = removeVariation;
+    window.addVariationItem = addVariationItem;
+    window.removeVariationItem = removeVariationItem;
+    
+    // Test functions for debugging
+    window.testEditFunction = function() {
+        console.log('Test function called');
+        console.log('supplyItems length:', supplyItems.length);
+        if (supplyItems.length > 0) {
+            console.log('Testing edit with first item:', supplyItems[0]);
+            editSupplyItem(supplyItems[0].id);
+        } else {
+            console.log('No supply items found');
+        }
+    };
+    
+    window.simpleTest = function() {
+        alert('Simple test function works!');
+        console.log('Simple test called');
+    };
+    
+    console.log('Global functions setup complete');
+}
 
-// Test function to debug
-window.testEditFunction = function() {
-    console.log('Test function called');
-    console.log('supplyItems length:', supplyItems.length);
-    if (supplyItems.length > 0) {
-        console.log('Testing edit with first item:', supplyItems[0]);
-        editSupplyItem(supplyItems[0].id);
-    } else {
-        console.log('No supply items found');
-    }
-};
-
-// Test if functions are callable at all
-window.simpleTest = function() {
-    alert('Simple test function works!');
-    console.log('Simple test called');
-};
-window.toggleSupplyDetails = toggleSupplyDetails;
-window.toggleStockDetails = toggleStockDetails;
-window.decreaseStock = decreaseStock;
-window.deleteStockItem = deleteStockItem;
-window.viewStockLog = viewStockLog;
-window.removeRecipeItem = removeRecipeItem;
-window.toggleRecipeDetails = toggleRecipeDetails;
-window.editRecipe = editRecipe;
-window.deleteRecipe = deleteRecipe;
-window.addRecipeVariation = addRecipeVariation;
-window.removeVariation = removeVariation;
-window.addVariationItem = addVariationItem;
-window.removeVariationItem = removeVariationItem;
+// Event delegation for better Android compatibility
+function setupEventDelegation() {
+    console.log('Setting up event delegation for Android...');
+    
+    // Use event delegation with data attributes for better Android touch support
+    document.body.addEventListener('click', function(e) {
+        const target = e.target;
+        const action = target.getAttribute('data-action');
+        const supplyId = target.getAttribute('data-supply-id');
+        
+        if (!action || !supplyId) return;
+        
+        e.preventDefault();
+        e.stopPropagation();
+        
+        console.log('Event delegation triggered:', { action, supplyId, target: target.className });
+        
+        switch(action) {
+            case 'edit':
+                console.log('Event delegation: calling editSupplyItem with', supplyId);
+                if (window.editSupplyItem) {
+                    window.editSupplyItem(supplyId);
+                } else {
+                    console.error('editSupplyItem function not available');
+                }
+                break;
+                
+            case 'delete':
+                console.log('Event delegation: calling deleteSupplyItem with', supplyId);
+                if (window.deleteSupplyItem) {
+                    window.deleteSupplyItem(supplyId);
+                } else {
+                    console.error('deleteSupplyItem function not available');
+                }
+                break;
+                
+            case 'toggle':
+                console.log('Event delegation: calling toggleSupplyDetails with', supplyId);
+                if (window.toggleSupplyDetails) {
+                    window.toggleSupplyDetails(supplyId);
+                } else {
+                    console.error('toggleSupplyDetails function not available');
+                }
+                break;
+        }
+    });
+    
+    // Handle touch events specifically for Android
+    document.body.addEventListener('touchstart', function(e) {
+        const target = e.target;
+        if (target.hasAttribute('data-action')) {
+            target.classList.add('touching');
+        }
+    });
+    
+    document.body.addEventListener('touchend', function(e) {
+        const target = e.target;
+        if (target.hasAttribute('data-action')) {
+            target.classList.remove('touching');
+            // Small delay to ensure touch is processed properly on Android
+            setTimeout(() => {
+                if (!e.defaultPrevented) {
+                    target.click();
+                }
+            }, 50);
+        }
+    });
+    
+    console.log('Event delegation setup complete');
+    
+    // Add touch feedback styles
+    const style = document.createElement('style');
+    style.textContent = `
+        .touching {
+            opacity: 0.7;
+            transform: scale(0.98);
+            transition: all 0.1s ease;
+        }
+        
+        [data-action] {
+            cursor: pointer;
+            -webkit-tap-highlight-color: rgba(0,0,0,0.1);
+        }
+    `;
+    document.head.appendChild(style);
+}
