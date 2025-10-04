@@ -374,6 +374,82 @@ tr:last-child td {
     flex: 1;
 }
 
+/* Recipe Variations Styles */
+.recipe-variation {
+    background: #f8f9fa;
+    border: 2px solid #e9ecef;
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 15px;
+    position: relative;
+}
+
+.recipe-variation h4 {
+    margin: 0 0 15px 0;
+    color: #495057;
+    font-size: 1.1rem;
+}
+
+.variation-header {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+    align-items: center;
+}
+
+.variation-header input {
+    flex: 1;
+}
+
+.variation-items {
+    margin-bottom: 15px;
+}
+
+.variation-item {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 10px;
+    padding: 8px;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.variation-item select {
+    flex: 1;
+    min-width: 120px;
+}
+
+.variation-item input {
+    flex: 1;
+    min-width: 0;
+}
+
+.variation-remove {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 25px;
+    height: 25px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.variation-remove:hover {
+    background: #c82333;
+}
+
+.variation-cost {
+    font-weight: bold;
+    color: #28a745;
+    margin-top: 10px;
+}
+
 /* Recipe Item Display Styles for details */
 .recipe-item-display {
     display: flex;

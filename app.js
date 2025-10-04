@@ -61,12 +61,32 @@ function setupModals() {
         });
     });
     
-    // Close modal when clicking outside
+    // Close modal when clicking outside (with buffer zone)
     window.addEventListener('click', (e) => {
         modals.forEach(modal => {
-            if (e.target === modal) {
-                modal.style.display = 'none';
-                currentEditingId = null;
+            // Only check if modal is visible
+            if (modal.style.display === 'block') {
+                const modalContent = modal.querySelector('.modal-content');
+                if (modalContent && !modalContent.contains(e.target)) {
+                    const rect = modalContent.getBoundingClientRect();
+                    const buffer = 100; // 100px buffer zone
+                    
+                    const clickX = e.clientX;
+                    const clickY = e.clientY;
+                    
+                    // Only close if click is outside the buffer zone around modal content
+                    if (clickX < rect.left - buffer || 
+                        clickX > rect.right + buffer || 
+                        clickY < rect.top - buffer || 
+                        clickY > rect.bottom + buffer) {
+                        modal.style.display = 'none';
+                        // Reset form if it's the recipe modal
+                        if (modal.id === 'recipe-modal') {
+                            resetRecipeForm();
+                        }
+                        currentEditingId = null;
+                    }
+                }
             }
         });
     });
@@ -85,9 +105,8 @@ function setupModals() {
     });
     
     document.getElementById('add-recipe-btn').addEventListener('click', () => {
+        resetRecipeForm();
         document.getElementById('recipe-modal').style.display = 'block';
-        document.getElementById('recipe-form').reset();
-        setupRecipeItemInputs();
         currentEditingId = null;
     });
     
@@ -103,6 +122,7 @@ function setupModals() {
     
     document.getElementById('cancel-recipe').addEventListener('click', () => {
         document.getElementById('recipe-modal').style.display = 'none';
+        resetRecipeForm();
         currentEditingId = null;
     });
 }
@@ -119,6 +139,7 @@ function setupForms() {
     // Recipe form
     document.getElementById('recipe-form').addEventListener('submit', handleRecipeSubmit);
     document.getElementById('add-recipe-item').addEventListener('click', addRecipeItem);
+    document.getElementById('add-variation').addEventListener('click', addRecipeVariation);
 }
 
 // Keyboard shortcuts setup
@@ -147,6 +168,42 @@ function setupKeyboardShortcuts() {
             }, 100);
         }
     });
+}
+
+// Recipe Form Reset Function
+function resetRecipeForm() {
+    // Reset the main form
+    document.getElementById('recipe-form').reset();
+    
+    // Clear recipe items container and add one default item
+    const recipeItemsContainer = document.getElementById('recipe-items');
+    recipeItemsContainer.innerHTML = `
+        <div class="recipe-item">
+            <input type="text" class="recipe-item-input" placeholder="Select or type item..." list="recipe-items-datalist" autocomplete="off" required>
+            <input type="number" class="recipe-measure" placeholder="Measure" step="0.01" autocomplete="off" required>
+            <button type="button" class="btn-remove" onclick="removeRecipeItem(this)">Remove</button>
+        </div>
+    `;
+    
+    // Clear variations container completely
+    const variationsContainer = document.getElementById('recipe-variations');
+    variationsContainer.innerHTML = '';
+    
+    // Clear category suggestions
+    const categorySuggestions = document.getElementById('category-suggestions');
+    if (categorySuggestions) {
+        categorySuggestions.style.display = 'none';
+        categorySuggestions.innerHTML = '';
+    }
+    
+    // Reset total cost display
+    const totalCostElement = document.getElementById('recipe-total-cost');
+    if (totalCostElement) {
+        totalCostElement.textContent = '0.00';
+    }
+    
+    // Re-setup the recipe item inputs for the default item
+    setupRecipeItemInputs();
 }
 
 // Supply Management
@@ -716,6 +773,128 @@ function removeRecipeItem(button) {
     calculateRecipeCost();
 }
 
+// Recipe Variations Management
+function addRecipeVariation() {
+    const container = document.getElementById('recipe-variations');
+    const variationId = 'variation-' + Date.now();
+    const variationDiv = document.createElement('div');
+    variationDiv.className = 'recipe-variation';
+    variationDiv.setAttribute('data-variation-id', variationId);
+    
+    variationDiv.innerHTML = `
+        <button type="button" class="variation-remove" onclick="removeVariation(this)">&times;</button>
+        <h4>Recipe Variation</h4>
+        <div class="variation-header">
+            <input type="text" class="variation-name" placeholder="Variation name (e.g., 'Extra Cheese', 'No Onions')" autocomplete="off" required>
+            <input type="number" class="variation-price" placeholder="Selling Price" step="0.01" autocomplete="off" required>
+        </div>
+        <div class="variation-items">
+            <label>Item Changes:</label>
+            <div class="variation-changes">
+                <div class="variation-item">
+                    <select class="variation-action">
+                        <option value="substitute">Substitute</option>
+                        <option value="add">Add</option>
+                        <option value="remove">Remove</option>
+                    </select>
+                    <input type="text" class="variation-original-item" placeholder="Original item (for substitute/remove)" list="recipe-items-datalist" autocomplete="off">
+                    <input type="text" class="variation-new-item" placeholder="New item (for substitute/add)" list="recipe-items-datalist" autocomplete="off">
+                    <input type="number" class="variation-measure" placeholder="Measure" step="0.01" autocomplete="off">
+                    <button type="button" class="btn-remove" onclick="removeVariationItem(this)">Remove</button>
+                </div>
+            </div>
+            <button type="button" class="btn-secondary" onclick="addVariationItem('${variationId}')">Add Item Change</button>
+        </div>
+        <div class="variation-cost">Cost Adjustment: <span class="variation-cost-value">0.00</span></div>
+    `;
+    
+    container.appendChild(variationDiv);
+    
+    // Add event listeners for cost calculation
+    const priceInput = variationDiv.querySelector('.variation-price');
+    const measureInputs = variationDiv.querySelectorAll('.variation-measure');
+    const actionSelects = variationDiv.querySelectorAll('.variation-action');
+    
+    priceInput.addEventListener('input', calculateVariationCosts);
+    measureInputs.forEach(input => input.addEventListener('input', calculateVariationCosts));
+    actionSelects.forEach(select => select.addEventListener('change', calculateVariationCosts));
+}
+
+function removeVariation(button) {
+    button.parentElement.remove();
+}
+
+function addVariationItem(variationId) {
+    const variation = document.querySelector(`[data-variation-id="${variationId}"]`);
+    const changesContainer = variation.querySelector('.variation-changes');
+    
+    const newItem = document.createElement('div');
+    newItem.className = 'variation-item';
+    newItem.innerHTML = `
+        <select class="variation-action">
+            <option value="substitute">Substitute</option>
+            <option value="add">Add</option>
+            <option value="remove">Remove</option>
+        </select>
+        <input type="text" class="variation-original-item" placeholder="Original item (for substitute/remove)" list="recipe-items-datalist" autocomplete="off">
+        <input type="text" class="variation-new-item" placeholder="New item (for substitute/add)" list="recipe-items-datalist" autocomplete="off">
+        <input type="number" class="variation-measure" placeholder="Measure" step="0.01" autocomplete="off">
+        <button type="button" class="btn-remove" onclick="removeVariationItem(this)">Remove</button>
+    `;
+    
+    changesContainer.appendChild(newItem);
+    
+    // Add event listeners
+    const measureInput = newItem.querySelector('.variation-measure');
+    const actionSelect = newItem.querySelector('.variation-action');
+    measureInput.addEventListener('input', calculateVariationCosts);
+    actionSelect.addEventListener('change', calculateVariationCosts);
+}
+
+function removeVariationItem(button) {
+    button.parentElement.remove();
+    calculateVariationCosts();
+}
+
+function calculateVariationCosts() {
+    const variations = document.querySelectorAll('.recipe-variation');
+    variations.forEach(variation => {
+        const costElement = variation.querySelector('.variation-cost-value');
+        const variationItems = variation.querySelectorAll('.variation-item');
+        let costAdjustment = 0;
+        
+        variationItems.forEach(item => {
+            const action = item.querySelector('.variation-action').value;
+            const originalItem = item.querySelector('.variation-original-item').value;
+            const newItem = item.querySelector('.variation-new-item').value;
+            const measure = parseFloat(item.querySelector('.variation-measure').value) || 0;
+            
+            if (action === 'substitute' && originalItem && newItem && measure > 0) {
+                const originalSupplyItem = supplyItems.find(s => s.name.toLowerCase() === originalItem.toLowerCase());
+                const newSupplyItem = supplyItems.find(s => s.name.toLowerCase() === newItem.toLowerCase());
+                
+                if (originalSupplyItem && newSupplyItem) {
+                    const originalCost = parseFloat(originalSupplyItem.pricePerProduct || 0) * measure;
+                    const newCost = parseFloat(newSupplyItem.pricePerProduct || 0) * measure;
+                    costAdjustment += (newCost - originalCost);
+                }
+            } else if (action === 'add' && newItem && measure > 0) {
+                const supplyItem = supplyItems.find(s => s.name.toLowerCase() === newItem.toLowerCase());
+                if (supplyItem) {
+                    costAdjustment += parseFloat(supplyItem.pricePerProduct || 0) * measure;
+                }
+            } else if (action === 'remove' && originalItem && measure > 0) {
+                const supplyItem = supplyItems.find(s => s.name.toLowerCase() === originalItem.toLowerCase());
+                if (supplyItem) {
+                    costAdjustment -= parseFloat(supplyItem.pricePerProduct || 0) * measure;
+                }
+            }
+        });
+        
+        costElement.textContent = (costAdjustment >= 0 ? '+' : '') + costAdjustment.toFixed(2);
+    });
+}
+
 function calculateRecipeCost() {
     const recipeItems = document.querySelectorAll('.recipe-item');
     let totalCost = 0;
@@ -767,12 +946,79 @@ async function handleRecipeSubmit(e) {
     
     const totalCost = items.reduce((sum, item) => sum + item.cost, 0);
     
+    // Collect variations data
+    const variations = [];
+    const variationElements = document.querySelectorAll('.recipe-variation');
+    
+    variationElements.forEach(variationElement => {
+        const variationName = variationElement.querySelector('.variation-name').value;
+        const variationPrice = parseFloat(variationElement.querySelector('.variation-price').value);
+        
+        if (variationName && variationPrice) {
+            const changes = [];
+            const variationItems = variationElement.querySelectorAll('.variation-item');
+            
+            variationItems.forEach(item => {
+                const action = item.querySelector('.variation-action').value;
+                const originalItem = item.querySelector('.variation-original-item').value;
+                const newItem = item.querySelector('.variation-new-item').value;
+                const measure = parseFloat(item.querySelector('.variation-measure').value) || 0;
+                
+                if ((action === 'substitute' && originalItem && newItem && measure > 0) ||
+                    (action === 'add' && newItem && measure > 0) ||
+                    (action === 'remove' && originalItem && measure > 0)) {
+                    
+                    changes.push({
+                        action,
+                        originalItem,
+                        newItem,
+                        measure
+                    });
+                }
+            });
+            
+            // Calculate variation cost
+            let variationCostAdjustment = 0;
+            changes.forEach(change => {
+                if (change.action === 'substitute' && change.originalItem && change.newItem) {
+                    const originalSupplyItem = supplyItems.find(s => s.name.toLowerCase() === change.originalItem.toLowerCase());
+                    const newSupplyItem = supplyItems.find(s => s.name.toLowerCase() === change.newItem.toLowerCase());
+                    
+                    if (originalSupplyItem && newSupplyItem) {
+                        const originalCost = parseFloat(originalSupplyItem.pricePerProduct || 0) * change.measure;
+                        const newCost = parseFloat(newSupplyItem.pricePerProduct || 0) * change.measure;
+                        variationCostAdjustment += (newCost - originalCost);
+                    }
+                } else if (change.action === 'add' && change.newItem) {
+                    const supplyItem = supplyItems.find(s => s.name.toLowerCase() === change.newItem.toLowerCase());
+                    if (supplyItem) {
+                        variationCostAdjustment += parseFloat(supplyItem.pricePerProduct || 0) * change.measure;
+                    }
+                } else if (change.action === 'remove' && change.originalItem) {
+                    const supplyItem = supplyItems.find(s => s.name.toLowerCase() === change.originalItem.toLowerCase());
+                    if (supplyItem) {
+                        variationCostAdjustment -= parseFloat(supplyItem.pricePerProduct || 0) * change.measure;
+                    }
+                }
+            });
+            
+            variations.push({
+                name: variationName,
+                sellingPrice: variationPrice,
+                costAdjustment: variationCostAdjustment,
+                totalCost: totalCost + variationCostAdjustment,
+                changes
+            });
+        }
+    });
+    
     const recipeData = {
         name,
         category,
         sellingPrice,
         totalCost,
         items,
+        variations,
         createdAt: new Date().toISOString()
     };
     
@@ -786,6 +1032,7 @@ async function handleRecipeSubmit(e) {
         }
         
         document.getElementById('recipe-modal').style.display = 'none';
+        resetRecipeForm();
         currentEditingId = null;
         loadRecipeData();
     } catch (error) {
@@ -850,6 +1097,19 @@ function renderRecipeList() {
                         `).join('')}
                     </div>
                 </div>
+                ${recipe.variations && recipe.variations.length > 0 ? `
+                    <div class="recipe-variations-display">
+                        <h4>Variations:</h4>
+                        <div class="recipe-details-grid">
+                            ${recipe.variations.map(variation => `
+                                <div class="recipe-item-display">
+                                    <span>${variation.name}</span>
+                                    <span>Price: ${variation.sellingPrice.toFixed(2)} • Profit: ${(variation.sellingPrice - variation.totalCost).toFixed(2)}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
                 <div class="form-actions">
                     <button class="btn-secondary" onclick="editRecipe('${recipe.id}')">Edit</button>
                     <button class="btn-remove" onclick="deleteRecipe('${recipe.id}')">Delete</button>
@@ -894,8 +1154,51 @@ async function editRecipe(id) {
         measure.addEventListener('input', calculateRecipeCost);
     });
     
+    // Clear existing variations
+    const variationsContainer = document.getElementById('recipe-variations');
+    variationsContainer.innerHTML = '';
+    
+    // Add recipe variations if they exist
+    if (recipe.variations && recipe.variations.length > 0) {
+        recipe.variations.forEach(variation => {
+            addRecipeVariation();
+            const variationElements = document.querySelectorAll('.recipe-variation');
+            const lastVariation = variationElements[variationElements.length - 1];
+            
+            lastVariation.querySelector('.variation-name').value = variation.name;
+            lastVariation.querySelector('.variation-price').value = variation.sellingPrice;
+            
+            // Clear the default variation item and add the actual changes
+            const changesContainer = lastVariation.querySelector('.variation-changes');
+            changesContainer.innerHTML = '';
+            
+            variation.changes.forEach(change => {
+                const changeItem = document.createElement('div');
+                changeItem.className = 'variation-item';
+                changeItem.innerHTML = `
+                    <select class="variation-action">
+                        <option value="substitute" ${change.action === 'substitute' ? 'selected' : ''}>Substitute</option>
+                        <option value="add" ${change.action === 'add' ? 'selected' : ''}>Add</option>
+                        <option value="remove" ${change.action === 'remove' ? 'selected' : ''}>Remove</option>
+                    </select>
+                    <input type="text" class="variation-original-item" placeholder="Original item" list="recipe-items-datalist" value="${change.originalItem || ''}" autocomplete="off">
+                    <input type="text" class="variation-new-item" placeholder="New item" list="recipe-items-datalist" value="${change.newItem || ''}" autocomplete="off">
+                    <input type="number" class="variation-measure" placeholder="Measure" step="0.01" value="${change.measure}" autocomplete="off">
+                    <button type="button" class="btn-remove" onclick="removeVariationItem(this)">Remove</button>
+                `;
+                changesContainer.appendChild(changeItem);
+                
+                const measureInput = changeItem.querySelector('.variation-measure');
+                const actionSelect = changeItem.querySelector('.variation-action');
+                measureInput.addEventListener('input', calculateVariationCosts);
+                actionSelect.addEventListener('change', calculateVariationCosts);
+            });
+        });
+    }
+    
     setupRecipeItemInputs();
     calculateRecipeCost();
+    calculateVariationCosts();
     currentEditingId = id;
     document.getElementById('recipe-modal').style.display = 'block';
 }
@@ -989,3 +1292,7 @@ window.removeRecipeItem = removeRecipeItem;
 window.toggleRecipeDetails = toggleRecipeDetails;
 window.editRecipe = editRecipe;
 window.deleteRecipe = deleteRecipe;
+window.addRecipeVariation = addRecipeVariation;
+window.removeVariation = removeVariation;
+window.addVariationItem = addVariationItem;
+window.removeVariationItem = removeVariationItem;
