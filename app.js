@@ -1545,7 +1545,9 @@ async function editRecipe(id) {
             const changesContainer = lastVariation.querySelector('.variation-changes');
             changesContainer.innerHTML = '';
             
-            variation.changes.forEach(change => {
+            // Check if changes exist before iterating
+            if (variation.changes && Array.isArray(variation.changes)) {
+                variation.changes.forEach(change => {
                 const changeItem = document.createElement('div');
                 changeItem.className = 'variation-item';
                 changeItem.innerHTML = `
@@ -1566,6 +1568,7 @@ async function editRecipe(id) {
                 measureInput.addEventListener('input', calculateVariationCosts);
                 actionSelect.addEventListener('change', calculateVariationCosts);
             });
+            }
         });
     }
     
