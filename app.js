@@ -400,35 +400,6 @@ function setupPWAInstall() {
     }
 }
 
-function showUpdateNotification() {
-    // Create update notification
-    const notification = document.createElement('div');
-    notification.className = 'update-notification';
-    notification.innerHTML = `
-        <div class="update-content">
-            <span>🔄 New version available!</span>
-            <button onclick="reloadForUpdate()" class="btn-primary">Update</button>
-            <button onclick="dismissUpdate(this)" class="btn-secondary">Later</button>
-        </div>
-    `;
-    document.body.appendChild(notification);
-    
-    // Auto-hide after 10 seconds
-    setTimeout(() => {
-        if (notification.parentNode) {
-            notification.remove();
-        }
-    }, 10000);
-}
-
-function reloadForUpdate() {
-    window.location.reload();
-}
-
-function dismissUpdate(button) {
-    button.closest('.update-notification').remove();
-}
-
 // Recipe Name Capitalization Setup
 function setupRecipeNameCapitalization() {
     const recipeNameInput = document.getElementById('recipe-name');

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'knox-inventory-v1.1.0';
+const CACHE_NAME = 'knox-inventory-v1.1.1-' + Date.now();
 const urlsToCache = [
   './',
   './index.html',
