@@ -1,4 +1,4 @@
-const CACHE_NAME = 'knox-inventory-v1.0.9';
+const CACHE_NAME = 'knox-inventory-v1.1.0';
 const urlsToCache = [
   './',
   './index.html',
@@ -157,5 +157,15 @@ self.addEventListener('notificationclick', (event) => {
     event.waitUntil(
       clients.openWindow('./')
     );
+  }
+});
+
+// Handle messages from the main thread
+self.addEventListener('message', (event) => {
+  console.log('Service Worker: Received message:', event.data);
+  
+  if (event.data && event.data.action === 'skipWaiting') {
+    console.log('Service Worker: Skipping waiting and activating new version');
+    self.skipWaiting();
   }
 });

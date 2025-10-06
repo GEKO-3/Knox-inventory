@@ -10,6 +10,10 @@ import {
     child
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
+// App version for cache busting
+const APP_VERSION = '1.1.0';
+console.log('Knox Inventory System v' + APP_VERSION + ' - Prep Products Update');
+
 // Global variables
 let supplyItems = [];
 let stockItems = [];
@@ -79,6 +83,7 @@ function initializeApp() {
     setupKeyboardShortcuts();
     setupEventDelegation(); // Add event delegation for Android
     loadData();
+    setupUpdateChecker();
     
     window.appInitialized = true;
     console.log('App initialization complete');
@@ -252,14 +257,22 @@ async function registerServiceWorker() {
             
             // Check for updates
             registration.addEventListener('updatefound', () => {
+                console.log('Service Worker update found!');
                 const newWorker = registration.installing;
                 newWorker.addEventListener('statechange', () => {
                     if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        console.log('New version available! Current app version:', APP_VERSION);
                         // New version available
                         showUpdateNotification();
                     }
                 });
             });
+            
+            // Check for waiting service worker on page load
+            if (registration.waiting) {
+                console.log('Service Worker waiting to activate');
+                showUpdateNotification();
+            }
         } catch (error) {
             console.error('Service Worker registration failed:', error);
         }
@@ -267,6 +280,72 @@ async function registerServiceWorker() {
     
     // PWA Install prompt
     setupPWAInstall();
+}
+
+function showUpdateNotification() {
+    console.log('Showing update notification');
+    
+    // Create update notification if it doesn't exist
+    if (!document.getElementById('update-notification')) {
+        const notification = document.createElement('div');
+        notification.id = 'update-notification';
+        notification.className = 'update-notification';
+        notification.innerHTML = `
+            <div class="update-content">
+                <span>🚀 New version available with Prep Products feature!</span>
+                <button id="update-btn" class="btn-primary">Update Now</button>
+                <button id="dismiss-update" class="btn-secondary">Later</button>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Handle update button click
+        document.getElementById('update-btn').addEventListener('click', () => {
+            console.log('User clicked update - reloading page');
+            // Skip waiting and reload
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({ action: 'skipWaiting' });
+            }
+            window.location.reload();
+        });
+        
+        // Handle dismiss button click
+        document.getElementById('dismiss-update').addEventListener('click', () => {
+            notification.remove();
+        });
+        
+        // Auto-show notification
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 100);
+    }
+}
+
+function setupUpdateChecker() {
+    // Check for updates every 30 minutes
+    setInterval(() => {
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            console.log('Checking for app updates...');
+            navigator.serviceWorker.getRegistration().then(registration => {
+                if (registration) {
+                    registration.update();
+                }
+            });
+        }
+    }, 30 * 60 * 1000); // 30 minutes
+    
+    // Also check when the app regains focus
+    window.addEventListener('focus', () => {
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            console.log('App focused - checking for updates...');
+            navigator.serviceWorker.getRegistration().then(registration => {
+                if (registration) {
+                    registration.update();
+                }
+            });
+        }
+    });
 }
 
 function setupPWAInstall() {
@@ -460,15 +539,14 @@ function resetPrepForm() {
         </div>
     `;
     
-    // Reset cost display
+    // Reset the cost displays
     document.getElementById('prep-total-cost').textContent = '0.00';
     document.getElementById('prep-unit-cost').textContent = '0.00';
     
     // Setup event listeners for the default item
-    const defaultItem = prepItemsContainer.querySelector('.prep-item');
-    if (defaultItem) {
-        const select = defaultItem.querySelector('.prep-item-select');
-        const measure = defaultItem.querySelector('.prep-measure');
+    const select = prepItemsContainer.querySelector('.prep-item-select');
+    const measure = prepItemsContainer.querySelector('.prep-measure');
+    if (select && measure) {
         select.addEventListener('change', calculatePrepCost);
         measure.addEventListener('input', calculatePrepCost);
     }
@@ -1314,19 +1392,19 @@ function calculateRecipeCost() {
         const measure = item.querySelector('.recipe-measure');
         
         if (input.value && measure.value) {
-            const measureValue = parseFloat(measure.value);
-            
-            // First check if it's a supply item
+            // Find the supply item by name
             const supplyItem = supplyItems.find(s => s.name.toLowerCase() === input.value.toLowerCase());
+            // Find the prep product by name
+            const prepProduct = prepProducts.find(p => p.name.toLowerCase() === input.value.toLowerCase());
+            
             if (supplyItem) {
                 const pricePerProduct = parseFloat(supplyItem.pricePerProduct || 0);
+                const measureValue = parseFloat(measure.value);
                 totalCost += pricePerProduct * measureValue;
-            } else {
-                // Check if it's a prep product
-                const prepProduct = prepProducts.find(p => p.name.toLowerCase() === input.value.toLowerCase());
-                if (prepProduct) {
-                    totalCost += prepProduct.unitCost * measureValue;
-                }
+            } else if (prepProduct) {
+                const unitCost = parseFloat(prepProduct.unitCost || 0);
+                const measureValue = parseFloat(measure.value);
+                totalCost += unitCost * measureValue;
             }
         }
     });
@@ -1349,30 +1427,25 @@ async function handleRecipeSubmit(e) {
         const measure = item.querySelector('.recipe-measure');
         
         if (input.value && measure.value) {
-            const measureValue = parseFloat(measure.value);
-            
-            // Check if it's a supply item first
             const supplyItem = supplyItems.find(s => s.name.toLowerCase() === input.value.toLowerCase());
+            const prepProduct = prepProducts.find(p => p.name.toLowerCase() === input.value.toLowerCase());
+            
             if (supplyItem) {
                 items.push({
                     itemId: supplyItem.id,
                     itemName: supplyItem.name,
-                    measure: measureValue,
-                    cost: parseFloat(supplyItem.pricePerProduct) * measureValue,
-                    type: 'supply'
+                    itemType: 'supply',
+                    measure: parseFloat(measure.value),
+                    cost: parseFloat(supplyItem.pricePerProduct) * parseFloat(measure.value)
                 });
-            } else {
-                // Check if it's a prep product
-                const prepProduct = prepProducts.find(p => p.name.toLowerCase() === input.value.toLowerCase());
-                if (prepProduct) {
-                    items.push({
-                        itemId: prepProduct.id,
-                        itemName: prepProduct.name,
-                        measure: measureValue,
-                        cost: prepProduct.unitCost * measureValue,
-                        type: 'prep'
-                    });
-                }
+            } else if (prepProduct) {
+                items.push({
+                    itemId: prepProduct.id,
+                    itemName: prepProduct.name,
+                    itemType: 'prep',
+                    measure: parseFloat(measure.value),
+                    cost: parseFloat(prepProduct.unitCost) * parseFloat(measure.value)
+                });
             }
         }
     });
@@ -1757,7 +1830,33 @@ async function loadRecipeData() {
         if (snapshot.exists()) {
             const data = snapshot.val();
             Object.keys(data).forEach(key => {
-                recipes.push({ id: key, ...data[key] });
+                const recipe = { id: key, ...data[key] };
+                
+                // Recalculate costs for all items (supply items and prep products)
+                let totalCost = 0;
+                recipe.items.forEach(item => {
+                    if (item.itemType === 'prep') {
+                        // Find prep product and calculate cost
+                        const prepProduct = prepProducts.find(p => p.name === item.itemName);
+                        if (prepProduct) {
+                            item.cost = prepProduct.unitCost * item.measure;
+                        } else {
+                            item.cost = 0;
+                        }
+                    } else {
+                        // Default to supply item calculation
+                        const supplyItem = supplyItems.find(s => s.name === item.itemName);
+                        if (supplyItem) {
+                            item.cost = supplyItem.pricePerProduct * item.measure;
+                        } else {
+                            item.cost = 0;
+                        }
+                    }
+                    totalCost += item.cost;
+                });
+                
+                recipe.totalCost = totalCost;
+                recipes.push(recipe);
             });
         }
         
