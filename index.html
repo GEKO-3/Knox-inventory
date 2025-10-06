@@ -39,6 +39,7 @@
             <nav>
                 <button class="nav-btn active" data-page="supply">Supply</button>
                 <button class="nav-btn" data-page="stock">Stock</button>
+                <button class="nav-btn" data-page="prep">Prep Products</button>
                 <button class="nav-btn" data-page="recipe">Recipe</button>
                 <button class="nav-btn" data-page="products">Products</button>
             </nav>
@@ -96,6 +97,16 @@
                     </table>
                 </div>
                 <div class="mobile-tiles" id="stock-tiles">
+                </div>
+            </div>
+
+            <!-- Prep Products Page -->
+            <div id="prep-page" class="page">
+                <h2>Prep Products Management</h2>
+                <div class="page-controls">
+                    <button class="btn-primary" id="add-prep-btn">Add Prep Product</button>
+                </div>
+                <div id="prep-list" class="prep-list">
                 </div>
             </div>
 
@@ -180,6 +191,56 @@
                 <div class="form-actions">
                     <button type="submit" class="btn-primary">Add Order</button>
                     <button type="button" class="btn-secondary" id="cancel-stock">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="prep-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>Add/Edit Prep Product</h3>
+            <form id="prep-form" autocomplete="off">
+                <div class="form-group">
+                    <label for="prep-name">Prep Product Name:</label>
+                    <input type="text" id="prep-name" autocomplete="off" required>
+                </div>
+                <div class="form-group">
+                    <label for="prep-yield">Yield (Amount Produced):</label>
+                    <input type="number" id="prep-yield" step="0.01" autocomplete="off" required>
+                </div>
+                <div class="form-group">
+                    <label for="prep-unit">Unit:</label>
+                    <input type="text" id="prep-unit" placeholder="e.g., kg, liters, pieces" autocomplete="off" required>
+                </div>
+                
+                <div class="form-section">
+                    <h4>Ingredients (Supply Items):</h4>
+                    <div id="prep-items" class="prep-items">
+                        <div class="prep-item">
+                            <select class="prep-item-select" required>
+                                <option value="">Select supply item...</option>
+                            </select>
+                            <input type="number" class="prep-measure" placeholder="Amount needed" step="0.01" autocomplete="off" required>
+                            <button type="button" class="btn-remove" onclick="removePrepItem(this)">Remove</button>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-secondary" id="add-prep-item">Add Item</button>
+                </div>
+
+                <div class="form-section">
+                    <div class="cost-display">
+                        <h4>Cost Analysis:</h4>
+                        <div class="cost-breakdown">
+                            <div>Total Cost: <span id="prep-total-cost">0.00</span></div>
+                            <div>Cost per Unit: <span id="prep-unit-cost">0.00</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Save Prep Product</button>
+                    <button type="button" class="btn-secondary" id="cancel-prep">Cancel</button>
                 </div>
             </form>
         </div>

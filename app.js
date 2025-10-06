@@ -13,6 +13,7 @@ import {
 // Global variables
 let supplyItems = [];
 let stockItems = [];
+let prepProducts = [];
 let recipes = [];
 let currentEditingId = null;
 
@@ -158,6 +159,12 @@ function setupModals() {
         document.getElementById('stock-form').reset();
     });
     
+    document.getElementById('add-prep-btn').addEventListener('click', () => {
+        resetPrepForm();
+        document.getElementById('prep-modal').style.display = 'block';
+        currentEditingId = null;
+    });
+    
     document.getElementById('add-recipe-btn').addEventListener('click', () => {
         resetRecipeForm();
         document.getElementById('recipe-modal').style.display = 'block';
@@ -172,6 +179,12 @@ function setupModals() {
     
     document.getElementById('cancel-stock').addEventListener('click', () => {
         document.getElementById('stock-modal').style.display = 'none';
+    });
+    
+    document.getElementById('cancel-prep').addEventListener('click', () => {
+        document.getElementById('prep-modal').style.display = 'none';
+        resetPrepForm();
+        currentEditingId = null;
     });
     
     document.getElementById('cancel-recipe').addEventListener('click', () => {
@@ -189,6 +202,11 @@ function setupForms() {
     // Stock form
     document.getElementById('stock-form').addEventListener('submit', handleStockSubmit);
     setupStockDropdown();
+    
+    // Prep products form
+    document.getElementById('prep-form').addEventListener('submit', handlePrepSubmit);
+    document.getElementById('add-prep-item').addEventListener('click', addPrepItem);
+    setupPrepDropdowns();
     
     // Recipe form
     document.getElementById('recipe-form').addEventListener('submit', handleRecipeSubmit);
@@ -421,6 +439,39 @@ function resetRecipeForm() {
     
     // Re-setup the recipe item inputs for the default item
     setupRecipeItemInputs();
+}
+
+function resetPrepForm() {
+    // Reset the main form
+    document.getElementById('prep-form').reset();
+    
+    // Clear prep items container and add one default item
+    const prepItemsContainer = document.getElementById('prep-items');
+    prepItemsContainer.innerHTML = `
+        <div class="prep-item">
+            <select class="prep-item-select" required>
+                <option value="">Select supply item...</option>
+                ${supplyItems.map(supply => 
+                    `<option value="${supply.name}">${supply.name}</option>`
+                ).join('')}
+            </select>
+            <input type="number" class="prep-measure" placeholder="Amount needed" step="0.01" autocomplete="off" required>
+            <button type="button" class="btn-remove" onclick="removePrepItem(this)">Remove</button>
+        </div>
+    `;
+    
+    // Reset cost display
+    document.getElementById('prep-total-cost').textContent = '0.00';
+    document.getElementById('prep-unit-cost').textContent = '0.00';
+    
+    // Setup event listeners for the default item
+    const defaultItem = prepItemsContainer.querySelector('.prep-item');
+    if (defaultItem) {
+        const select = defaultItem.querySelector('.prep-item-select');
+        const measure = defaultItem.querySelector('.prep-measure');
+        select.addEventListener('change', calculatePrepCost);
+        measure.addEventListener('input', calculatePrepCost);
+    }
 }
 
 // Supply Management
@@ -1080,8 +1131,15 @@ function setupRecipeItemInputs() {
     const datalist = document.getElementById('recipe-items-datalist');
     if (datalist) {
         datalist.innerHTML = '';
+        
+        // Add supply items
         supplyItems.forEach(item => {
-            datalist.innerHTML += `<option value="${item.name}" data-id="${item.id}" data-price="${item.pricePerProduct}"></option>`;
+            datalist.innerHTML += `<option value="${item.name}" data-id="${item.id}" data-price="${item.pricePerProduct}" data-type="supply"></option>`;
+        });
+        
+        // Add prep products
+        prepProducts.forEach(prep => {
+            datalist.innerHTML += `<option value="${prep.name}" data-id="${prep.id}" data-price="${prep.unitCost}" data-type="prep"></option>`;
         });
     }
     
@@ -1256,12 +1314,19 @@ function calculateRecipeCost() {
         const measure = item.querySelector('.recipe-measure');
         
         if (input.value && measure.value) {
-            // Find the supply item by name
+            const measureValue = parseFloat(measure.value);
+            
+            // First check if it's a supply item
             const supplyItem = supplyItems.find(s => s.name.toLowerCase() === input.value.toLowerCase());
             if (supplyItem) {
                 const pricePerProduct = parseFloat(supplyItem.pricePerProduct || 0);
-                const measureValue = parseFloat(measure.value);
                 totalCost += pricePerProduct * measureValue;
+            } else {
+                // Check if it's a prep product
+                const prepProduct = prepProducts.find(p => p.name.toLowerCase() === input.value.toLowerCase());
+                if (prepProduct) {
+                    totalCost += prepProduct.unitCost * measureValue;
+                }
             }
         }
     });
@@ -1284,14 +1349,30 @@ async function handleRecipeSubmit(e) {
         const measure = item.querySelector('.recipe-measure');
         
         if (input.value && measure.value) {
+            const measureValue = parseFloat(measure.value);
+            
+            // Check if it's a supply item first
             const supplyItem = supplyItems.find(s => s.name.toLowerCase() === input.value.toLowerCase());
             if (supplyItem) {
                 items.push({
                     itemId: supplyItem.id,
                     itemName: supplyItem.name,
-                    measure: parseFloat(measure.value),
-                    cost: parseFloat(supplyItem.pricePerProduct) * parseFloat(measure.value)
+                    measure: measureValue,
+                    cost: parseFloat(supplyItem.pricePerProduct) * measureValue,
+                    type: 'supply'
                 });
+            } else {
+                // Check if it's a prep product
+                const prepProduct = prepProducts.find(p => p.name.toLowerCase() === input.value.toLowerCase());
+                if (prepProduct) {
+                    items.push({
+                        itemId: prepProduct.id,
+                        itemName: prepProduct.name,
+                        measure: measureValue,
+                        cost: prepProduct.unitCost * measureValue,
+                        type: 'prep'
+                    });
+                }
             }
         }
     });
@@ -1390,6 +1471,280 @@ async function handleRecipeSubmit(e) {
     } catch (error) {
         console.error('Error saving recipe:', error);
         alert('Error saving recipe. Please try again.');
+    }
+}
+
+// Prep Products Management
+async function loadPrepData() {
+    try {
+        console.log('Loading prep products data...');
+        const prepRef = ref(window.db, 'prepProducts');
+        const snapshot = await get(prepRef);
+        prepProducts = [];
+        
+        if (snapshot.exists()) {
+            const data = snapshot.val();
+            Object.keys(data).forEach(key => {
+                const prep = data[key];
+                prep.id = key;
+                
+                // Calculate costs
+                let totalCost = 0;
+                prep.items.forEach(item => {
+                    const supplyItem = supplyItems.find(s => s.name === item.itemName);
+                    if (supplyItem) {
+                        const unitCost = supplyItem.price / supplyItem.size;
+                        item.cost = unitCost * item.measure;
+                        totalCost += item.cost;
+                    } else {
+                        item.cost = 0;
+                    }
+                });
+                
+                prep.totalCost = totalCost;
+                prep.unitCost = prep.yield ? totalCost / prep.yield : 0;
+                prepProducts.push(prep);
+            });
+        }
+        
+        console.log('Loaded prep products:', prepProducts.length);
+        renderPrepList();
+    } catch (error) {
+        console.error('Error loading prep products:', error);
+    }
+}
+
+function renderPrepList() {
+    console.log('=== RENDERING PREP PRODUCTS LIST ===');
+    console.log('Prep products to render:', prepProducts.length);
+    
+    const container = document.getElementById('prep-list');
+    container.innerHTML = '';
+    
+    if (prepProducts.length === 0) {
+        container.innerHTML = '<div class="empty-state"><h3>No prep products found</h3><p>Add your first prep product to get started!</p></div>';
+        return;
+    }
+    
+    prepProducts.forEach(prep => {
+        const card = document.createElement('div');
+        card.className = 'prep-card';
+        card.innerHTML = `
+            <div class="prep-header toggle-prep-details" data-prep-id="${prep.id}" data-action="toggle-prep">
+                <h3>${prep.name}</h3>
+                <div class="prep-summary">
+                    <span>Yield: ${prep.yield} ${prep.unit}</span>
+                    <span>Total Cost: ${prep.totalCost.toFixed(2)}</span>
+                    <span>Cost per ${prep.unit}: ${prep.unitCost.toFixed(2)}</span>
+                </div>
+            </div>
+            <div class="prep-details" id="prep-details-${prep.id}">
+                <div class="prep-items">
+                    <h4>Ingredients:</h4>
+                    <div class="prep-details-grid">
+                        ${prep.items.map(item => `
+                            <div class="prep-item-display">
+                                <span>${item.itemName}</span>
+                                <span>Amount: ${item.measure} • Cost: ${item.cost.toFixed(2)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn-secondary edit-prep-btn" data-prep-id="${prep.id}" data-action="edit-prep">Edit</button>
+                    <button class="btn-remove delete-prep-btn" data-prep-id="${prep.id}" data-action="delete-prep">Delete</button>
+                </div>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function togglePrepDetails(id) {
+    const details = document.getElementById(`prep-details-${id}`);
+    details.classList.toggle('show');
+}
+
+async function editPrepProduct(id) {
+    console.log('=== EDIT PREP PRODUCT DEBUG ===');
+    console.log('Called with id:', id, 'Type:', typeof id);
+    
+    const prep = prepProducts.find(p => {
+        console.log('Comparing prep:', p.id, '(type:', typeof p.id, ') with', id, '(type:', typeof id, ')');
+        return p.id === id || p.id === String(id) || String(p.id) === String(id);
+    });
+    
+    console.log('Found prep product:', prep);
+    if (!prep) {
+        console.error('❌ PREP PRODUCT NOT FOUND!');
+        alert(`Prep product not found! ID: ${id}`);
+        return;
+    }
+    
+    document.getElementById('prep-name').value = prep.name;
+    document.getElementById('prep-yield').value = prep.yield;
+    document.getElementById('prep-unit').value = prep.unit;
+    
+    // Clear existing prep items
+    const container = document.getElementById('prep-items');
+    container.innerHTML = '';
+    
+    // Add prep items
+    prep.items.forEach(item => {
+        const newItem = document.createElement('div');
+        newItem.className = 'prep-item';
+        newItem.innerHTML = `
+            <select class="prep-item-select" required>
+                <option value="">Select supply item...</option>
+                ${supplyItems.map(supply => 
+                    `<option value="${supply.name}" ${supply.name === item.itemName ? 'selected' : ''}>${supply.name}</option>`
+                ).join('')}
+            </select>
+            <input type="number" class="prep-measure" placeholder="Amount needed" step="0.01" value="${item.measure}" autocomplete="off" required>
+            <button type="button" class="btn-remove" onclick="removePrepItem(this)">Remove</button>
+        `;
+        container.appendChild(newItem);
+        
+        const select = newItem.querySelector('.prep-item-select');
+        const measure = newItem.querySelector('.prep-measure');
+        select.addEventListener('change', calculatePrepCost);
+        measure.addEventListener('input', calculatePrepCost);
+    });
+    
+    calculatePrepCost();
+    currentEditingId = id;
+    document.getElementById('prep-modal').style.display = 'block';
+}
+
+async function deletePrepProduct(id) {
+    if (confirm('Are you sure you want to delete this prep product?')) {
+        try {
+            const prepRef = ref(window.db, `prepProducts/${id}`);
+            await remove(prepRef);
+            loadPrepData();
+        } catch (error) {
+            console.error('Error deleting prep product:', error);
+            alert('Error deleting prep product. Please try again.');
+        }
+    }
+}
+
+function setupPrepDropdowns() {
+    const select = document.querySelector('.prep-item-select');
+    if (select) {
+        select.innerHTML = '<option value="">Select supply item...</option>';
+        supplyItems.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item.name;
+            option.textContent = item.name;
+            select.appendChild(option);
+        });
+    }
+}
+
+function addPrepItem() {
+    const container = document.getElementById('prep-items');
+    const newItem = document.createElement('div');
+    newItem.className = 'prep-item';
+    newItem.innerHTML = `
+        <select class="prep-item-select" required>
+            <option value="">Select supply item...</option>
+            ${supplyItems.map(supply => 
+                `<option value="${supply.name}">${supply.name}</option>`
+            ).join('')}
+        </select>
+        <input type="number" class="prep-measure" placeholder="Amount needed" step="0.01" autocomplete="off" required>
+        <button type="button" class="btn-remove" onclick="removePrepItem(this)">Remove</button>
+    `;
+    container.appendChild(newItem);
+    
+    const select = newItem.querySelector('.prep-item-select');
+    const measure = newItem.querySelector('.prep-measure');
+    select.addEventListener('change', calculatePrepCost);
+    measure.addEventListener('input', calculatePrepCost);
+}
+
+function removePrepItem(button) {
+    button.parentElement.remove();
+    calculatePrepCost();
+}
+
+function calculatePrepCost() {
+    const prepItems = document.querySelectorAll('.prep-item');
+    let totalCost = 0;
+    
+    prepItems.forEach(item => {
+        const select = item.querySelector('.prep-item-select');
+        const measureInput = item.querySelector('.prep-measure');
+        
+        if (select.value && measureInput.value) {
+            const supplyItem = supplyItems.find(s => s.name === select.value);
+            if (supplyItem) {
+                const unitCost = supplyItem.price / supplyItem.size;
+                const itemCost = unitCost * parseFloat(measureInput.value);
+                totalCost += itemCost;
+            }
+        }
+    });
+    
+    const yieldInput = document.getElementById('prep-yield');
+    const yield_ = parseFloat(yieldInput.value) || 1;
+    const unitCost = totalCost / yield_;
+    
+    document.getElementById('prep-total-cost').textContent = totalCost.toFixed(2);
+    document.getElementById('prep-unit-cost').textContent = unitCost.toFixed(2);
+}
+
+async function handlePrepSubmit(e) {
+    e.preventDefault();
+    
+    try {
+        const name = document.getElementById('prep-name').value.trim();
+        const yield_ = parseFloat(document.getElementById('prep-yield').value);
+        const unit = document.getElementById('prep-unit').value.trim();
+        
+        const prepItems = document.querySelectorAll('.prep-item');
+        const items = [];
+        
+        prepItems.forEach(item => {
+            const select = item.querySelector('.prep-item-select');
+            const measureInput = item.querySelector('.prep-measure');
+            
+            if (select.value && measureInput.value) {
+                items.push({
+                    itemName: select.value,
+                    measure: parseFloat(measureInput.value)
+                });
+            }
+        });
+        
+        if (items.length === 0) {
+            alert('Please add at least one ingredient.');
+            return;
+        }
+        
+        const formData = {
+            name,
+            yield: yield_,
+            unit,
+            items
+        };
+        
+        const prepRef = ref(window.db, 'prepProducts');
+        
+        if (currentEditingId) {
+            const specificPrepRef = ref(window.db, `prepProducts/${currentEditingId}`);
+            await set(specificPrepRef, formData);
+        } else {
+            await push(prepRef, formData);
+        }
+        
+        document.getElementById('prep-modal').style.display = 'none';
+        currentEditingId = null;
+        loadPrepData();
+    } catch (error) {
+        console.error('Error saving prep product:', error);
+        alert('Error saving prep product. Please try again.');
     }
 }
 
@@ -1687,12 +2042,14 @@ async function loadData() {
     console.log('=== LOADING ALL DATA ===');
     await loadSupplyData();
     await loadStockData();
+    await loadPrepData();
     await loadRecipeData();
     
     console.log('=== DATA LOAD COMPLETE ===');
     console.log('Final data counts:');
     console.log('- Supply items:', supplyItems.length);
     console.log('- Stock items:', stockItems.length);
+    console.log('- Prep products:', prepProducts.length);
     console.log('- Recipes:', recipes.length);
     
     // Setup category suggestions after recipe data is loaded
@@ -1731,6 +2088,10 @@ function setupGlobalFunctions() {
     window.removeVariation = removeVariation;
     window.addVariationItem = addVariationItem;
     window.removeVariationItem = removeVariationItem;
+    window.editPrepProduct = editPrepProduct;
+    window.deletePrepProduct = deletePrepProduct;
+    window.togglePrepDetails = togglePrepDetails;
+    window.removePrepItem = removePrepItem;
     
     // Test functions for debugging
     window.testEditFunction = function() {
@@ -1883,11 +2244,12 @@ function setupEventDelegation() {
         const supplyId = target.getAttribute('data-supply-id');
         const recipeId = target.getAttribute('data-recipe-id');
         const stockId = target.getAttribute('data-stock-id');
+        const prepId = target.getAttribute('data-prep-id');
         
         // Check if we have any valid action and ID
-        if (!action || (!supplyId && !recipeId && !stockId)) return;
+        if (!action || (!supplyId && !recipeId && !stockId && !prepId)) return;
         
-        const itemId = supplyId || recipeId || stockId;
+        const itemId = supplyId || recipeId || stockId || prepId;
         
         // Multiple checks to prevent expansion during scrolling
         if (isScrolling) {
@@ -1918,7 +2280,8 @@ function setupEventDelegation() {
             'data-action': target.getAttribute('data-action'),
             'data-supply-id': target.getAttribute('data-supply-id'),
             'data-recipe-id': target.getAttribute('data-recipe-id'),
-            'data-stock-id': target.getAttribute('data-stock-id')
+            'data-stock-id': target.getAttribute('data-stock-id'),
+            'data-prep-id': target.getAttribute('data-prep-id')
         });
         
         switch(action) {
@@ -2051,6 +2414,47 @@ function setupEventDelegation() {
                     }
                 } else {
                     console.error('toggleStockDetails function not available');
+                }
+                break;
+                
+            case 'edit-prep':
+                console.log('Event delegation: calling editPrepProduct with', itemId);
+                if (window.editPrepProduct) {
+                    window.editPrepProduct(itemId);
+                } else {
+                    console.error('editPrepProduct function not available');
+                }
+                break;
+                
+            case 'delete-prep':
+                console.log('Event delegation: calling deletePrepProduct with', itemId);
+                if (window.deletePrepProduct) {
+                    window.deletePrepProduct(itemId);
+                } else {
+                    console.error('deletePrepProduct function not available');
+                }
+                break;
+                
+            case 'toggle-prep':
+                console.log('Event delegation: calling togglePrepDetails with', itemId);
+                if (window.togglePrepDetails) {
+                    // Prevent rapid firing by checking if already animating
+                    const details = document.getElementById(`prep-details-${itemId}`);
+                    if (details && !details.classList.contains('animating')) {
+                        details.classList.add('animating');
+                        setTimeout(() => {
+                            details.classList.remove('animating');
+                        }, 600); // Match animation duration
+                        
+                        // Add small delay for Android touch processing
+                        setTimeout(() => {
+                            window.togglePrepDetails(itemId);
+                        }, 50);
+                    } else {
+                        console.log('Prep animation already in progress, ignoring toggle');
+                    }
+                } else {
+                    console.error('togglePrepDetails function not available');
                 }
                 break;
         }
