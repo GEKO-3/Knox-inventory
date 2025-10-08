@@ -11,8 +11,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
 // App version for cache busting
-const APP_VERSION = '1.1.0';
-console.log('Knox Inventory System v' + APP_VERSION + ' - Prep Products Update');
+const APP_VERSION = '1.2.0';
+console.log('Knox Inventory System v' + APP_VERSION + ' - Prep Products with Measure Per Product');
 
 // Global variables
 let supplyItems = [];
@@ -292,7 +292,7 @@ function showUpdateNotification() {
         notification.className = 'update-notification';
         notification.innerHTML = `
             <div class="update-content">
-                <span>🚀 New version available with Prep Products feature!</span>
+                <span>🚀 New version available! Prep Products now include Measure Per Product for accurate recipe costing!</span>
                 <button id="update-btn" class="btn-primary">Update Now</button>
                 <button id="dismiss-update" class="btn-secondary">Later</button>
             </div>
@@ -1188,7 +1188,7 @@ function setupRecipeItemInputs() {
         
         // Add prep products
         prepProducts.forEach(prep => {
-            datalist.innerHTML += `<option value="${prep.name}" data-id="${prep.id}" data-price="${prep.unitCost}" data-type="prep"></option>`;
+            datalist.innerHTML += `<option value="${prep.name}" data-id="${prep.id}" data-price="${prep.pricePerProduct}" data-type="prep"></option>`;
         });
     }
     
@@ -1373,9 +1373,9 @@ function calculateRecipeCost() {
                 const measureValue = parseFloat(measure.value);
                 totalCost += pricePerProduct * measureValue;
             } else if (prepProduct) {
-                const unitCost = parseFloat(prepProduct.unitCost || 0);
+                const pricePerProduct = parseFloat(prepProduct.pricePerProduct || 0);
                 const measureValue = parseFloat(measure.value);
-                totalCost += unitCost * measureValue;
+                totalCost += pricePerProduct * measureValue;
             }
         }
     });
@@ -1415,7 +1415,7 @@ async function handleRecipeSubmit(e) {
                     itemName: prepProduct.name,
                     itemType: 'prep',
                     measure: parseFloat(measure.value),
-                    cost: parseFloat(prepProduct.unitCost) * parseFloat(measure.value)
+                    cost: parseFloat(prepProduct.pricePerProduct) * parseFloat(measure.value)
                 });
             }
         }
@@ -1547,6 +1547,8 @@ async function loadPrepData() {
                 
                 prep.totalCost = totalCost;
                 prep.unitCost = prep.yield ? totalCost / prep.yield : 0;
+                // Calculate pricePerProduct for recipe calculations (like supply items)
+                prep.pricePerProduct = prep.measurePerProduct ? prep.unitCost * prep.measurePerProduct : prep.unitCost;
                 prepProducts.push(prep);
             });
         }
@@ -1577,9 +1579,10 @@ function renderPrepList() {
             <div class="prep-header toggle-prep-details" data-prep-id="${prep.id}" data-action="toggle-prep">
                 <h3>${prep.name}</h3>
                 <div class="prep-summary">
-                    <span>Yield: ${prep.yield} ${prep.unit}</span>
+                    <span>Yield: ${prep.yield}</span>
+                    <span>Measure/Product: ${prep.measurePerProduct || 'N/A'}</span>
                     <span>Total Cost: ${prep.totalCost.toFixed(2)}</span>
-                    <span>Cost per ${prep.unit}: ${prep.unitCost.toFixed(2)}</span>
+                    <span>Unit Cost: ${prep.unitCost.toFixed(2)}</span>
                 </div>
             </div>
             <div class="prep-details" id="prep-details-${prep.id}">
@@ -1627,7 +1630,7 @@ async function editPrepProduct(id) {
     
     document.getElementById('prep-name').value = prep.name;
     document.getElementById('prep-yield').value = prep.yield;
-    document.getElementById('prep-unit').value = prep.unit;
+    document.getElementById('prep-measure-per-product').value = prep.measurePerProduct || 1;
     
     // Clear existing prep items
     const container = document.getElementById('prep-items');
@@ -1745,7 +1748,7 @@ async function handlePrepSubmit(e) {
     try {
         const name = document.getElementById('prep-name').value.trim();
         const yield_ = parseFloat(document.getElementById('prep-yield').value);
-        const unit = document.getElementById('prep-unit').value.trim();
+        const measurePerProduct = parseFloat(document.getElementById('prep-measure-per-product').value);
         
         const prepItems = document.querySelectorAll('.prep-item');
         const items = [];
@@ -1770,7 +1773,7 @@ async function handlePrepSubmit(e) {
         const formData = {
             name,
             yield: yield_,
-            unit,
+            measurePerProduct,
             items
         };
         
@@ -1810,7 +1813,7 @@ async function loadRecipeData() {
                         // Find prep product and calculate cost
                         const prepProduct = prepProducts.find(p => p.name === item.itemName);
                         if (prepProduct) {
-                            item.cost = prepProduct.unitCost * item.measure;
+                            item.cost = prepProduct.pricePerProduct * item.measure;
                         } else {
                             item.cost = 0;
                         }
