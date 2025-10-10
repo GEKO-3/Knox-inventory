@@ -17,9 +17,11 @@ console.log('Knox POS System v' + APP_VERSION + ' - Tablet Optimized');
 // Global variables
 let recipes = [];
 let cart = [];
+let currentVariationProduct = null;
+let selectedVariation = null;
 let settings = {
     taxRate: 12,
-    receiptFooter: 'Thank you for dining with Knox Restaurant!',
+    receiptFooter: 'Thank you for dining with Knox Restaurant! - MVR Currency',
     autoPrint: true
 };
 
@@ -107,13 +109,19 @@ function renderMenu() {
                 <span class="category-toggle">▼</span>
             </div>
             <div class="category-items">
-                ${sortedRecipes.map(recipe => `
-                    <div class="menu-item" onclick="addToCart('${recipe.id}')">
-                        <div class="menu-item-name">${recipe.name}</div>
-                        <div class="menu-item-price">₱${recipe.sellingPrice.toFixed(2)}</div>
-                        <div class="menu-item-profit">Profit: ₱${(recipe.sellingPrice - recipe.totalCost).toFixed(2)}</div>
-                    </div>
-                `).join('')}
+                ${sortedRecipes.map(recipe => {
+                    const hasVariations = recipe.variations && recipe.variations.length > 0;
+                    const clickHandler = hasVariations ? `showVariationsModal('${recipe.id}')` : `addToCart('${recipe.id}')`;
+                    const variationBadge = hasVariations ? '<span class="menu-variation-badge">Options</span>' : '';
+                    
+                    return `
+                        <div class="menu-item" onclick="${clickHandler}">
+                            <div class="menu-item-name">${recipe.name} ${variationBadge}</div>
+                            <div class="menu-item-price">MVR ${recipe.sellingPrice.toFixed(2)}</div>
+                            <div class="menu-item-profit">Profit: MVR ${(recipe.sellingPrice - recipe.totalCost).toFixed(2)}</div>
+                        </div>
+                    `;
+                }).join('')}
             </div>
         `;
         
@@ -127,32 +135,123 @@ window.toggleCategory = function(header) {
     section.classList.toggle('collapsed');
 };
 
-// Add item to cart
-window.addToCart = function(recipeId) {
+// Show variations modal
+window.showVariationsModal = function(recipeId) {
     const recipe = recipes.find(r => r.id === recipeId);
     if (!recipe) return;
     
-    const existingItem = cart.find(item => item.id === recipeId);
+    currentVariationProduct = recipe;
+    selectedVariation = null;
+    
+    // Update modal content
+    document.getElementById('variation-product-name').textContent = recipe.name;
+    document.getElementById('variation-description').textContent = 
+        `Choose your preferred option for ${recipe.name}`;
+    
+    // Create variations list
+    const variationsList = document.getElementById('variations-list');
+    
+    // Add base/normal option
+    const normalOption = `
+        <div class="variation-option" onclick="selectVariation('normal')">
+            <div class="variation-info">
+                <div class="variation-name">Normal</div>
+                <div class="variation-price">MVR ${recipe.sellingPrice.toFixed(2)}</div>
+                <div class="variation-description-text">Standard preparation</div>
+            </div>
+            <div class="variation-badge">Default</div>
+        </div>
+    `;
+    
+    // Add variations if they exist
+    let variationsHtml = normalOption;
+    if (recipe.variations && recipe.variations.length > 0) {
+        recipe.variations.forEach((variation, index) => {
+            variationsHtml += `
+                <div class="variation-option" onclick="selectVariation(${index})">
+                    <div class="variation-info">
+                        <div class="variation-name">${variation.name}</div>
+                        <div class="variation-price">MVR ${variation.price.toFixed(2)}</div>
+                        <div class="variation-description-text">${variation.description || 'Special preparation'}</div>
+                    </div>
+                    ${variation.isSpecial ? '<div class="variation-badge">Special</div>' : ''}
+                </div>
+            `;
+        });
+    }
+    
+    variationsList.innerHTML = variationsHtml;
+    
+    // Show modal
+    document.getElementById('variations-modal').style.display = 'block';
+    
+    // Reset add button
+    document.getElementById('add-variation').disabled = true;
+};
+
+// Select variation
+window.selectVariation = function(variationIndex) {
+    // Remove previous selection
+    document.querySelectorAll('.variation-option').forEach(opt => {
+        opt.classList.remove('selected');
+    });
+    
+    // Add selection to clicked option
+    event.target.closest('.variation-option').classList.add('selected');
+    
+    selectedVariation = variationIndex;
+    document.getElementById('add-variation').disabled = false;
+};
+
+// Add item to cart (with or without variation)
+window.addToCart = function(recipeId, variationData = null) {
+    const recipe = recipes.find(r => r.id === recipeId);
+    if (!recipe) return;
+    
+    let itemName = recipe.name;
+    let itemPrice = recipe.sellingPrice;
+    let itemId = recipeId;
+    
+    // Handle variation
+    if (variationData) {
+        if (variationData.type === 'variation' && recipe.variations) {
+            const variation = recipe.variations[variationData.index];
+            itemName = `${recipe.name} (${variation.name})`;
+            itemPrice = variation.price;
+            itemId = `${recipeId}_var_${variationData.index}`;
+        } else if (variationData.type === 'normal') {
+            itemName = `${recipe.name} (Normal)`;
+            itemId = `${recipeId}_normal`;
+        }
+    }
+    
+    const existingItem = cart.find(item => item.id === itemId);
     
     if (existingItem) {
         existingItem.quantity += 1;
     } else {
         cart.push({
-            id: recipeId,
-            name: recipe.name,
-            price: recipe.sellingPrice,
-            quantity: 1
+            id: itemId,
+            baseId: recipeId,
+            name: itemName,
+            price: itemPrice,
+            quantity: 1,
+            variation: variationData
         });
     }
     
     updateCartDisplay();
     
     // Add visual feedback
-    const menuItem = event.target.closest('.menu-item');
-    menuItem.style.transform = 'scale(0.95)';
-    setTimeout(() => {
-        menuItem.style.transform = '';
-    }, 150);
+    if (!variationData) {
+        const menuItem = event.target.closest('.menu-item');
+        if (menuItem) {
+            menuItem.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                menuItem.style.transform = '';
+            }, 150);
+        }
+    }
 };
 
 // Update cart display
@@ -186,13 +285,13 @@ function updateCartDisplay() {
             <div class="cart-item">
                 <div class="cart-item-info">
                     <div class="cart-item-name">${item.name}</div>
-                    <div class="cart-item-price">₱${item.price.toFixed(2)} each</div>
+                    <div class="cart-item-price">MVR ${item.price.toFixed(2)} each</div>
                 </div>
                 <div class="cart-item-controls">
                     <button class="qty-btn" onclick="updateQuantity('${item.id}', -1)" ${item.quantity <= 1 ? 'disabled' : ''}>-</button>
                     <span class="cart-quantity">${item.quantity}</span>
                     <button class="qty-btn" onclick="updateQuantity('${item.id}', 1)">+</button>
-                    <div class="cart-total">₱${itemTotal.toFixed(2)}</div>
+                    <div class="cart-total">MVR ${itemTotal.toFixed(2)}</div>
                 </div>
             </div>
         `;
@@ -203,12 +302,12 @@ function updateCartDisplay() {
     const tax = subtotal * (settings.taxRate / 100);
     const total = subtotal + tax;
     
-    subtotalEl.textContent = `₱${subtotal.toFixed(2)}`;
-    taxEl.textContent = `₱${tax.toFixed(2)}`;
-    totalEl.textContent = `₱${total.toFixed(2)}`;
+    subtotalEl.textContent = `MVR ${subtotal.toFixed(2)}`;
+    taxEl.textContent = `MVR ${tax.toFixed(2)}`;
+    totalEl.textContent = `MVR ${total.toFixed(2)}`;
 }
 
-// Update item quantity
+// Update item quantity  
 window.updateQuantity = function(itemId, change) {
     const item = cart.find(item => item.id === itemId);
     if (!item) return;
@@ -345,15 +444,15 @@ function generateReceipt(order) {
         <div class="receipt-summary">
             <div class="receipt-summary-row">
                 <span>Subtotal:</span>
-                <span>₱${order.subtotal.toFixed(2)}</span>
+                <span>MVR ${order.subtotal.toFixed(2)}</span>
             </div>
             <div class="receipt-summary-row">
                 <span>Tax (${order.taxRate}%):</span>
-                <span>₱${order.tax.toFixed(2)}</span>
+                <span>MVR ${order.tax.toFixed(2)}</span>
             </div>
             <div class="receipt-summary-row receipt-total">
                 <span>TOTAL:</span>
-                <span>₱${order.total.toFixed(2)}</span>
+                <span>MVR ${order.total.toFixed(2)}</span>
             </div>
         </div>
         
@@ -513,6 +612,11 @@ function setupEventListeners() {
     // Settings
     document.getElementById('save-settings').addEventListener('click', saveSettings);
     
+    // Variations modal
+    document.getElementById('close-variations').addEventListener('click', closeVariationsModal);
+    document.getElementById('cancel-variation').addEventListener('click', closeVariationsModal);
+    document.getElementById('add-variation').addEventListener('click', addSelectedVariation);
+    
     // Modal close buttons
     document.getElementById('close-history').addEventListener('click', () => {
         document.getElementById('history-modal').style.display = 'none';
@@ -525,7 +629,11 @@ function setupEventListeners() {
     // Close modals when clicking outside
     window.addEventListener('click', (e) => {
         if (e.target.classList.contains('modal')) {
-            e.target.style.display = 'none';
+            if (e.target.id === 'variations-modal') {
+                closeVariationsModal();
+            } else {
+                e.target.style.display = 'none';
+            }
         }
     });
     
@@ -549,9 +657,13 @@ function setupEventListeners() {
         
         if (e.key === 'Escape') {
             // Close any open modal
-            document.querySelectorAll('.modal').forEach(modal => {
-                modal.style.display = 'none';
-            });
+            if (document.getElementById('variations-modal').style.display === 'block') {
+                closeVariationsModal();
+            } else {
+                document.querySelectorAll('.modal').forEach(modal => {
+                    modal.style.display = 'none';
+                });
+            }
         }
     });
 }
@@ -690,7 +802,7 @@ function displayBills(bills) {
             <div class="bill-item" onclick="loadBill('${bill.id}')">
                 <div class="bill-header">
                     <span class="bill-id">#${bill.id.slice(-6).toUpperCase()}</span>
-                    <span class="bill-total">₱${bill.total.toFixed(2)}</span>
+                    <span class="bill-total">MVR ${bill.total.toFixed(2)}</span>
                 </div>
                 <div class="bill-date">${date.toLocaleString()}</div>
                 <div class="bill-items">${itemsText}</div>
@@ -761,6 +873,44 @@ window.loadBill = function(billId) {
         }
     }, 3000);
 };
+
+// Close variations modal
+function closeVariationsModal() {
+    document.getElementById('variations-modal').style.display = 'none';
+    currentVariationProduct = null;
+    selectedVariation = null;
+}
+
+// Add selected variation to cart
+function addSelectedVariation() {
+    if (!currentVariationProduct || selectedVariation === null) return;
+    
+    let variationData;
+    if (selectedVariation === 'normal') {
+        variationData = { type: 'normal' };
+    } else {
+        variationData = { type: 'variation', index: selectedVariation };
+    }
+    
+    addToCart(currentVariationProduct.id, variationData);
+    closeVariationsModal();
+    
+    // Show success feedback
+    const notification = document.createElement('div');
+    notification.className = 'variation-added-notification';
+    notification.innerHTML = `
+        <div style="background: #D58A94; color: white; padding: 10px 16px; border-radius: 8px; margin: 10px; box-shadow: 0 4px 12px rgba(213, 138, 148, 0.3); font-size: 0.9rem;">
+            ✅ Added to cart
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 2000);
+}
 
 async function saveCurrentOrder() {
     if (cart.length === 0) {

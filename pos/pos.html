@@ -15,11 +15,11 @@
     
     <!-- PWA Meta Tags -->
     <meta name="description" content="Knox Point of Sale system for restaurant orders and receipts">
-    <meta name="theme-color" content="#28a745">
+    <meta name="theme-color" content="#D58A94">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Knox POS">
-    <meta name="msapplication-TileColor" content="#28a745">
+    <meta name="msapplication-TileColor" content="#D58A94">
     
     <!-- Manifest -->
     <link rel="manifest" href="pos-manifest.json">
@@ -101,6 +101,28 @@
         <!-- Overlay for nav panel -->
         <div class="nav-overlay" id="nav-overlay"></div>
 
+        <!-- Product Variations Modal -->
+        <div class="modal" id="variations-modal">
+            <div class="modal-content variations-modal-content">
+                <div class="modal-header">
+                    <h3 id="variation-product-name">Select Variation</h3>
+                    <span class="close" id="close-variations">&times;</span>
+                </div>
+                <div class="variations-content">
+                    <div class="variation-description" id="variation-description">
+                        Choose your preferred option for this item
+                    </div>
+                    <div class="variations-list" id="variations-list">
+                        <!-- Variations will be populated here -->
+                    </div>
+                    <div class="variation-actions">
+                        <button class="btn-secondary" id="cancel-variation">Cancel</button>
+                        <button class="btn-primary" id="add-variation" disabled>Add to Cart</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <main class="pos-main">
             <!-- Left Panel - Menu -->
             <div class="menu-panel">
@@ -129,15 +151,15 @@
                 <div class="cart-summary">
                     <div class="summary-row">
                         <span>Subtotal:</span>
-                        <span id="subtotal">₱0.00</span>
+                        <span id="subtotal">MVR 0.00</span>
                     </div>
                     <div class="summary-row">
                         <span>Tax (12%):</span>
-                        <span id="tax">₱0.00</span>
+                        <span id="tax">MVR 0.00</span>
                     </div>
                     <div class="summary-row total">
                         <span>Total:</span>
-                        <span id="total">₱0.00</span>
+                        <span id="total">MVR 0.00</span>
                     </div>
                 </div>
                 
