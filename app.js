@@ -502,10 +502,11 @@ function resetPrepForm() {
             <select class="prep-item-select" required>
                 <option value="">Select supply item...</option>
                 ${supplyItems.map(supply => 
-                    `<option value="${supply.name}">${supply.name}</option>`
+                    `<option value="${supply.name}" data-measure="${supply.measurePerProduct}">${supply.name} (${supply.measurePerProduct} per unit)</option>`
                 ).join('')}
             </select>
             <input type="number" class="prep-measure" placeholder="Amount needed" step="0.01" autocomplete="off" required>
+            <input type="number" class="prep-quantity" placeholder="Units needed" step="0.001" autocomplete="off" readonly>
             <button type="button" class="btn-remove" onclick="removePrepItem(this)">Remove</button>
         </div>
     `;
@@ -516,10 +517,22 @@ function resetPrepForm() {
     
     // Setup event listeners for the default item
     const select = prepItemsContainer.querySelector('.prep-item-select');
-    const measure = prepItemsContainer.querySelector('.prep-measure');
-    if (select && measure) {
-        select.addEventListener('change', calculatePrepCost);
-        measure.addEventListener('input', calculatePrepCost);
+    const measureInput = prepItemsContainer.querySelector('.prep-measure');
+    const quantityInput = prepItemsContainer.querySelector('.prep-quantity');
+    
+    if (select && measureInput && quantityInput) {
+        // Update units needed when supply item or amount needed changes
+        const updateUnitsNeeded = () => {
+            const selectedOption = select.options[select.selectedIndex];
+            const measurePerProduct = parseFloat(selectedOption.getAttribute('data-measure')) || 1;
+            const amountNeeded = parseFloat(measureInput.value) || 0;
+            const unitsNeeded = amountNeeded / measurePerProduct;
+            quantityInput.value = unitsNeeded.toFixed(6);
+            calculatePrepCost();
+        };
+        
+        select.addEventListener('change', updateUnitsNeeded);
+        measureInput.addEventListener('input', updateUnitsNeeded);
     }
 }
 
@@ -1638,24 +1651,41 @@ async function editPrepProduct(id) {
     
     // Add prep items
     prep.items.forEach(item => {
+        const supplyItem = supplyItems.find(s => s.name === item.itemName);
+        const measurePerProduct = supplyItem ? supplyItem.measurePerProduct : 1;
+        const unitsNeeded = measurePerProduct > 0 ? item.measure / measurePerProduct : 0;
+        
         const newItem = document.createElement('div');
         newItem.className = 'prep-item';
         newItem.innerHTML = `
             <select class="prep-item-select" required>
                 <option value="">Select supply item...</option>
                 ${supplyItems.map(supply => 
-                    `<option value="${supply.name}" ${supply.name === item.itemName ? 'selected' : ''}>${supply.name}</option>`
+                    `<option value="${supply.name}" data-measure="${supply.measurePerProduct}" ${supply.name === item.itemName ? 'selected' : ''}>${supply.name} (${supply.measurePerProduct} per unit)</option>`
                 ).join('')}
             </select>
             <input type="number" class="prep-measure" placeholder="Amount needed" step="0.01" value="${item.measure}" autocomplete="off" required>
+            <input type="number" class="prep-quantity" placeholder="Units needed" step="0.001" value="${unitsNeeded.toFixed(6)}" autocomplete="off" readonly>
             <button type="button" class="btn-remove" onclick="removePrepItem(this)">Remove</button>
         `;
         container.appendChild(newItem);
         
         const select = newItem.querySelector('.prep-item-select');
-        const measure = newItem.querySelector('.prep-measure');
-        select.addEventListener('change', calculatePrepCost);
-        measure.addEventListener('input', calculatePrepCost);
+        const measureInput = newItem.querySelector('.prep-measure');
+        const quantityInput = newItem.querySelector('.prep-quantity');
+        
+        // Update units needed when supply item or amount needed changes
+        const updateUnitsNeeded = () => {
+            const selectedOption = select.options[select.selectedIndex];
+            const measurePerProduct = parseFloat(selectedOption.getAttribute('data-measure')) || 1;
+            const amountNeeded = parseFloat(measureInput.value) || 0;
+            const unitsNeeded = amountNeeded / measurePerProduct;
+            quantityInput.value = unitsNeeded.toFixed(6);
+            calculatePrepCost();
+        };
+        
+        select.addEventListener('change', updateUnitsNeeded);
+        measureInput.addEventListener('input', updateUnitsNeeded);
     });
     
     calculatePrepCost();
@@ -1697,18 +1727,31 @@ function addPrepItem() {
         <select class="prep-item-select" required>
             <option value="">Select supply item...</option>
             ${supplyItems.map(supply => 
-                `<option value="${supply.name}">${supply.name}</option>`
+                `<option value="${supply.name}" data-measure="${supply.measurePerProduct}">${supply.name} (${supply.measurePerProduct} per unit)</option>`
             ).join('')}
         </select>
         <input type="number" class="prep-measure" placeholder="Amount needed" step="0.01" autocomplete="off" required>
+        <input type="number" class="prep-quantity" placeholder="Units needed" step="0.001" autocomplete="off" readonly>
         <button type="button" class="btn-remove" onclick="removePrepItem(this)">Remove</button>
     `;
     container.appendChild(newItem);
     
     const select = newItem.querySelector('.prep-item-select');
-    const measure = newItem.querySelector('.prep-measure');
-    select.addEventListener('change', calculatePrepCost);
-    measure.addEventListener('input', calculatePrepCost);
+    const measureInput = newItem.querySelector('.prep-measure');
+    const quantityInput = newItem.querySelector('.prep-quantity');
+    
+    // Update units needed when supply item or amount needed changes
+    const updateUnitsNeeded = () => {
+        const selectedOption = select.options[select.selectedIndex];
+        const measurePerProduct = parseFloat(selectedOption.getAttribute('data-measure')) || 1;
+        const amountNeeded = parseFloat(measureInput.value) || 0;
+        const unitsNeeded = amountNeeded / measurePerProduct;
+        quantityInput.value = unitsNeeded.toFixed(6);
+        calculatePrepCost();
+    };
+    
+    select.addEventListener('change', updateUnitsNeeded);
+    measureInput.addEventListener('input', updateUnitsNeeded);
 }
 
 function removePrepItem(button) {

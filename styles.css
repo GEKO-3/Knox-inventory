@@ -1154,11 +1154,17 @@ tr:last-child td {
 }
 
 .prep-item .prep-item-select {
-    flex: 2;
+    flex: 3;
 }
 
 .prep-item .prep-measure {
     flex: 1;
+}
+
+.prep-item .prep-quantity {
+    flex: 1;
+    background-color: #f8f9fa;
+    color: #666;
 }
 
 .prep-item-display {

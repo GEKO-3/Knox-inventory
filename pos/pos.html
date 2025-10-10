@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Knox POS System</title>
+    
+    <!-- Cache Control -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="app-version" content="1.0.0">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Knox Point of Sale system for restaurant orders and receipts">
+    <meta name="theme-color" content="#28a745">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Knox POS">
+    <meta name="msapplication-TileColor" content="#28a745">
+    
+    <!-- Manifest -->
+    <link rel="manifest" href="pos-manifest.json">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/svg+xml" href="../icons/pos-icon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="../icons/pos-icon-32x32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="../icons/pos-icon-180x180.png">
+    
+    <!-- Preconnect to Firebase -->
+    <link rel="preconnect" href="https://www.gstatic.com">
+    <link rel="dns-prefetch" href="https://knox-inventory-default-rtdb.asia-southeast1.firebasedatabase.app">
+    
+    <link rel="stylesheet" href="pos-styles.css">
+    
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+        import { getDatabase } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyAokjv9pinAu_hnT4kA8lSWFZyQo3I10oE",
+            authDomain: "knox-inventory.firebaseapp.com",
+            databaseURL: "https://knox-inventory-default-rtdb.asia-southeast1.firebasedatabase.app/",
+            projectId: "knox-inventory",
+            storageBucket: "knox-inventory.firebasestorage.app",
+            messagingSenderId: "14319997241",
+            appId: "1:14319997241:web:e7dad9c17df15c67a498e8"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        window.db = getDatabase(app);
+        console.log('Firebase POS initialized');
+    </script>
+</head>
+<body>
+    <div class="pos-container">
+        <!-- Header -->
+        <header class="pos-header">
+            <h1>Knox POS <span class="version-badge">v1.0.0</span></h1>
+            <div class="header-actions">
+                <button class="btn-icon" id="orders-history-btn" title="Order History">
+                    📋
+                </button>
+                <button class="btn-icon" id="settings-btn" title="Settings">
+                    ⚙️
+                </button>
+            </div>
+        </header>
+
+        <main class="pos-main">
+            <!-- Left Panel - Menu -->
+            <div class="menu-panel">
+                <div class="menu-search">
+                    <input type="text" id="menu-search" placeholder="Search menu items..." autocomplete="off">
+                </div>
+                <div class="menu-categories" id="menu-categories">
+                    <!-- Categories will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Right Panel - Cart & Order -->
+            <div class="order-panel">
+                <div class="cart-header">
+                    <h2>Current Order</h2>
+                    <button class="btn-clear" id="clear-cart">Clear</button>
+                </div>
+                
+                <div class="cart-items" id="cart-items">
+                    <div class="empty-cart">
+                        <p>No items in cart</p>
+                        <small>Tap menu items to add</small>
+                    </div>
+                </div>
+                
+                <div class="cart-summary">
+                    <div class="summary-row">
+                        <span>Subtotal:</span>
+                        <span id="subtotal">₱0.00</span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Tax (12%):</span>
+                        <span id="tax">₱0.00</span>
+                    </div>
+                    <div class="summary-row total">
+                        <span>Total:</span>
+                        <span id="total">₱0.00</span>
+                    </div>
+                </div>
+                
+                <div class="order-actions">
+                    <button class="btn-secondary" id="save-order">Save Order</button>
+                    <button class="btn-primary" id="checkout">Checkout & Print</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Receipt Modal -->
+    <div id="receipt-modal" class="modal">
+        <div class="modal-content receipt-content">
+            <div class="receipt" id="receipt">
+                <!-- Receipt content will be generated here -->
+            </div>
+            <div class="receipt-actions">
+                <button class="btn-secondary" id="print-receipt">Print Receipt</button>
+                <button class="btn-primary" id="finish-order">Finish Order</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order History Modal -->
+    <div id="history-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Order History</h3>
+                <span class="close" id="close-history">&times;</span>
+            </div>
+            <div class="order-history" id="order-history">
+                <!-- Order history will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>POS Settings</h3>
+                <span class="close" id="close-settings">&times;</span>
+            </div>
+            <div class="settings-content">
+                <div class="setting-group">
+                    <label for="tax-rate">Tax Rate (%):</label>
+                    <input type="number" id="tax-rate" value="12" step="0.01" min="0" max="100">
+                </div>
+                <div class="setting-group">
+                    <label for="receipt-footer">Receipt Footer:</label>
+                    <textarea id="receipt-footer" rows="3" placeholder="Thank you for your business!">Thank you for dining with Knox Restaurant!</textarea>
+                </div>
+                <div class="setting-group">
+                    <label for="auto-print">Auto-print receipts:</label>
+                    <input type="checkbox" id="auto-print" checked>
+                </div>
+                <button class="btn-primary" id="save-settings">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- POS Application -->
+    <script type="module" src="pos-app.js?v=1.0.0"></script>
+</body>
+</html>
