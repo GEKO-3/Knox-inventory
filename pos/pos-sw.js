@@ -1,4 +1,4 @@
-const CACHE_NAME = 'knox-pos-v1.0.1';
+const CACHE_NAME = 'knox-pos-v1.1.0';
 const urlsToCache = [
     './',
     './pos.html',

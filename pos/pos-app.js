@@ -11,8 +11,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
 // App version
-const APP_VERSION = '1.0.1';
-console.log('Knox POS System v' + APP_VERSION + ' - Tablet Optimized');
+const APP_VERSION = '1.1.0';
+console.log('Knox POS System v' + APP_VERSION + ' - Product Variations & Android Compatible');
 
 // Global variables
 let recipes = [];
@@ -37,6 +37,7 @@ async function initializePOS() {
         setupEventListeners();
         renderMenu();
         updateCartDisplay();
+        setupMenuClickHandlers();
         
         console.log('POS System initialized successfully');
     } catch (error) {
@@ -111,11 +112,10 @@ function renderMenu() {
             <div class="category-items">
                 ${sortedRecipes.map(recipe => {
                     const hasVariations = recipe.variations && recipe.variations.length > 0;
-                    const clickHandler = hasVariations ? `showVariationsModal('${recipe.id}')` : `addToCart('${recipe.id}')`;
                     const variationBadge = hasVariations ? '<span class="menu-variation-badge">Options</span>' : '';
                     
                     return `
-                        <div class="menu-item" onclick="${clickHandler}">
+                        <div class="menu-item" data-recipe-id="${recipe.id}" data-has-variations="${hasVariations}">
                             <div class="menu-item-name">${recipe.name} ${variationBadge}</div>
                             <div class="menu-item-price">MVR ${recipe.sellingPrice.toFixed(2)}</div>
                             <div class="menu-item-profit">Profit: MVR ${(recipe.sellingPrice - recipe.totalCost).toFixed(2)}</div>
@@ -127,6 +127,56 @@ function renderMenu() {
         
         container.appendChild(categorySection);
     });
+    
+    // Re-setup click handlers after rendering
+    setupMenuClickHandlers();
+}
+
+// Setup menu item click handlers (Android-compatible)
+function setupMenuClickHandlers() {
+    const menuContainer = document.getElementById('menu-categories');
+    
+    // Remove existing listeners
+    menuContainer.removeEventListener('click', handleMenuClick);
+    menuContainer.removeEventListener('touchend', handleMenuClick);
+    
+    // Add both click and touchend for Android compatibility
+    menuContainer.addEventListener('click', handleMenuClick, { passive: false });
+    menuContainer.addEventListener('touchend', handleMenuClick, { passive: false });
+}
+
+// Handle menu item clicks
+function handleMenuClick(e) {
+    // Prevent default behavior and stop propagation
+    if (e.preventDefault) e.preventDefault();
+    if (e.stopPropagation) e.stopPropagation();
+    
+    const menuItem = e.target.closest('.menu-item');
+    if (!menuItem) return;
+    
+    const recipeId = menuItem.dataset.recipeId;
+    const hasVariations = menuItem.dataset.hasVariations === 'true';
+    
+    console.log('Menu item clicked:', recipeId, 'Has variations:', hasVariations, 'Event type:', e.type);
+    
+    // Add visual feedback immediately
+    menuItem.style.transform = 'scale(0.95)';
+    
+    // Handle click with slight delay for Android compatibility
+    setTimeout(() => {
+        if (hasVariations) {
+            console.log('Attempting to show variations modal...');
+            showVariationsModal(recipeId);
+        } else {
+            console.log('Adding to cart directly...');
+            addToCart(recipeId);
+        }
+        
+        // Reset visual feedback
+        menuItem.style.transform = '';
+    }, 50);
+    
+    return false;
 }
 
 // Toggle category expansion
@@ -137,8 +187,15 @@ window.toggleCategory = function(header) {
 
 // Show variations modal
 window.showVariationsModal = function(recipeId) {
+    console.log('showVariationsModal called for:', recipeId);
+    
     const recipe = recipes.find(r => r.id === recipeId);
-    if (!recipe) return;
+    if (!recipe) {
+        console.error('Recipe not found:', recipeId);
+        return;
+    }
+    
+    console.log('Recipe found:', recipe.name, 'Has variations:', recipe.variations?.length || 0);
     
     currentVariationProduct = recipe;
     selectedVariation = null;
@@ -153,7 +210,7 @@ window.showVariationsModal = function(recipeId) {
     
     // Add base/normal option
     const normalOption = `
-        <div class="variation-option" onclick="selectVariation('normal')">
+        <div class="variation-option" data-variation="normal">
             <div class="variation-info">
                 <div class="variation-name">Normal</div>
                 <div class="variation-price">MVR ${recipe.sellingPrice.toFixed(2)}</div>
@@ -168,7 +225,7 @@ window.showVariationsModal = function(recipeId) {
     if (recipe.variations && recipe.variations.length > 0) {
         recipe.variations.forEach((variation, index) => {
             variationsHtml += `
-                <div class="variation-option" onclick="selectVariation(${index})">
+                <div class="variation-option" data-variation="${index}">
                     <div class="variation-info">
                         <div class="variation-name">${variation.name}</div>
                         <div class="variation-price">MVR ${variation.price.toFixed(2)}</div>
@@ -182,25 +239,79 @@ window.showVariationsModal = function(recipeId) {
     
     variationsList.innerHTML = variationsHtml;
     
+    // Setup variation click handlers
+    setupVariationClickHandlers();
+    
     // Show modal
-    document.getElementById('variations-modal').style.display = 'block';
+    const modal = document.getElementById('variations-modal');
+    modal.style.display = 'block';
+    console.log('Variations modal should now be visible');
     
     // Reset add button
     document.getElementById('add-variation').disabled = true;
+    
+    // Force focus on modal for better accessibility
+    setTimeout(() => {
+        const firstVariation = modal.querySelector('.variation-option');
+        if (firstVariation) {
+            firstVariation.focus();
+        }
+    }, 100);
 };
 
-// Select variation
-window.selectVariation = function(variationIndex) {
+// Setup variation click handlers (Android-compatible)
+function setupVariationClickHandlers() {
+    const variationsList = document.getElementById('variations-list');
+    
+    // Remove existing listeners
+    variationsList.removeEventListener('click', handleVariationClick);
+    variationsList.removeEventListener('touchend', handleVariationClick);
+    
+    // Add both click and touchend for Android compatibility
+    variationsList.addEventListener('click', handleVariationClick, { passive: false });
+    variationsList.addEventListener('touchend', handleVariationClick, { passive: false });
+}
+
+// Handle variation clicks
+function handleVariationClick(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const variationOption = e.target.closest('.variation-option');
+    if (!variationOption) return;
+    
+    const variationIndex = variationOption.dataset.variation;
+    
+    console.log('Variation selected:', variationIndex);
+    
     // Remove previous selection
     document.querySelectorAll('.variation-option').forEach(opt => {
         opt.classList.remove('selected');
     });
     
     // Add selection to clicked option
-    event.target.closest('.variation-option').classList.add('selected');
+    variationOption.classList.add('selected');
     
     selectedVariation = variationIndex;
     document.getElementById('add-variation').disabled = false;
+}
+
+// Select variation (legacy function for compatibility)
+window.selectVariation = function(variationIndex) {
+    console.log('Legacy selectVariation called:', variationIndex);
+    
+    // Remove previous selection
+    document.querySelectorAll('.variation-option').forEach(opt => {
+        opt.classList.remove('selected');
+    });
+    
+    // Find and select the option
+    const option = document.querySelector(`[data-variation="${variationIndex}"]`);
+    if (option) {
+        option.classList.add('selected');
+        selectedVariation = variationIndex;
+        document.getElementById('add-variation').disabled = false;
+    }
 };
 
 // Add item to cart (with or without variation)
@@ -288,9 +399,9 @@ function updateCartDisplay() {
                     <div class="cart-item-price">MVR ${item.price.toFixed(2)} each</div>
                 </div>
                 <div class="cart-item-controls">
-                    <button class="qty-btn" onclick="updateQuantity('${item.id}', -1)" ${item.quantity <= 1 ? 'disabled' : ''}>-</button>
+                    <button class="qty-btn ${item.quantity === 1 ? 'qty-btn-remove' : ''}" onclick="updateQuantity('${item.id}', -1)" title="${item.quantity === 1 ? 'Remove item' : 'Decrease quantity'}">-</button>
                     <span class="cart-quantity">${item.quantity}</span>
-                    <button class="qty-btn" onclick="updateQuantity('${item.id}', 1)">+</button>
+                    <button class="qty-btn" onclick="updateQuantity('${item.id}', 1)" title="Increase quantity">+</button>
                     <div class="cart-total">MVR ${itemTotal.toFixed(2)}</div>
                 </div>
             </div>
@@ -311,6 +422,19 @@ function updateCartDisplay() {
 window.updateQuantity = function(itemId, change) {
     const item = cart.find(item => item.id === itemId);
     if (!item) return;
+    
+    // If decreasing quantity and it would go to 0, show confirmation
+    if (change < 0 && item.quantity === 1) {
+        const itemPrice = `MVR ${(item.price * item.quantity).toFixed(2)}`;
+        if (confirm(`Remove "${item.name}" from cart?\n\nThis will remove ${itemPrice} from your order total.`)) {
+            cart = cart.filter(cartItem => cartItem.id !== itemId);
+            updateCartDisplay();
+            
+            // Show removal feedback
+            showItemRemovedNotification(item.name);
+        }
+        return;
+    }
     
     item.quantity += change;
     
@@ -858,20 +982,7 @@ window.loadBill = function(billId) {
     closeBillsNav();
     
     // Show confirmation
-    const notification = document.createElement('div');
-    notification.className = 'bill-loaded-notification';
-    notification.innerHTML = `
-        <div style="background: #28a745; color: white; padding: 12px 20px; border-radius: 8px; margin: 10px; box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);">
-            ✅ Bill #${billId.slice(-6).toUpperCase()} loaded into cart
-        </div>
-    `;
-    
-    document.body.appendChild(notification);
-    setTimeout(() => {
-        if (notification.parentNode) {
-            notification.parentNode.removeChild(notification);
-        }
-    }, 3000);
+    showSuccessNotification(`✅ Bill #${billId.slice(-6).toUpperCase()} loaded into cart`);
 };
 
 // Close variations modal
@@ -896,11 +1007,21 @@ function addSelectedVariation() {
     closeVariationsModal();
     
     // Show success feedback
+    showSuccessNotification('✅ Added to cart');
+}
+
+// Show item removed notification
+function showItemRemovedNotification(itemName) {
+    showSuccessNotification(`🗑️ Removed ${itemName} from cart`, '#dc3545');
+}
+
+// Generic success notification function
+function showSuccessNotification(message, backgroundColor = '#D58A94') {
     const notification = document.createElement('div');
-    notification.className = 'variation-added-notification';
+    notification.className = 'success-notification';
     notification.innerHTML = `
-        <div style="background: #D58A94; color: white; padding: 10px 16px; border-radius: 8px; margin: 10px; box-shadow: 0 4px 12px rgba(213, 138, 148, 0.3); font-size: 0.9rem;">
-            ✅ Added to cart
+        <div style="background: ${backgroundColor}; color: white; padding: 10px 16px; border-radius: 8px; margin: 10px; box-shadow: 0 4px 12px rgba(213, 138, 148, 0.3); font-size: 0.9rem; position: fixed; top: 80px; right: 20px; z-index: 10001;">
+            ${message}
         </div>
     `;
     
