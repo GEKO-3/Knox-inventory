@@ -901,6 +901,74 @@ body {
     background: rgba(255, 255, 255, 0.3);
 }
 
+/* Install Notification */
+.install-notification {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: linear-gradient(135deg, #28a745, #20a23a);
+    color: white;
+    padding: 0;
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(40, 167, 69, 0.3);
+    z-index: 10000;
+    opacity: 1;
+    transform: translateY(0);
+    transition: all 0.3s ease;
+    min-width: 320px;
+    max-width: 400px;
+}
+
+.install-notification .notification-content {
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.install-notification .notification-content span {
+    font-size: 0.95rem;
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+.notification-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-install,
+.btn-dismiss {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-install {
+    background: white;
+    color: #28a745;
+}
+
+.btn-install:hover {
+    background: #f8f9fa;
+    transform: translateY(-1px);
+}
+
+.btn-dismiss {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.btn-dismiss:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
 /* Bills Navigation Panel */
 .bills-nav {
     position: fixed;

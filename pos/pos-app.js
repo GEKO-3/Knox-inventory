@@ -18,6 +18,7 @@ console.log('Knox POS System v' + APP_VERSION + ' - Category Display & Bill Mana
 let recipes = [];
 let cart = [];
 let currentVariationProduct = null;
+let deferredPrompt;
 let selectedVariation = null;
 let settings = {
     taxRate: 12,
@@ -40,6 +41,9 @@ async function initializePOS() {
         setupMenuClickHandlers();
         
         console.log('POS System initialized successfully');
+        
+        // Check PWA installability
+        setTimeout(checkPWAInstallability, 2000);
     } catch (error) {
         console.error('Error initializing POS:', error);
         alert('Error loading POS system. Please check your connection.');
@@ -872,6 +876,87 @@ if ('serviceWorker' in navigator) {
         }
     });
 }
+
+// PWA Install Prompt Handler
+window.addEventListener('beforeinstallprompt', (e) => {
+    console.log('PWA install prompt triggered');
+    // Prevent the mini-infobar from appearing on mobile
+    e.preventDefault();
+    // Stash the event so it can be triggered later
+    deferredPrompt = e;
+    // Show install button or notification
+    showInstallPrompt();
+});
+
+// Check PWA installation criteria
+function checkPWAInstallability() {
+    console.log('=== PWA Installation Check ===');
+    console.log('Protocol:', window.location.protocol);
+    console.log('Is HTTPS or localhost:', window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    console.log('Service Worker supported:', 'serviceWorker' in navigator);
+    console.log('Manifest link present:', !!document.querySelector('link[rel="manifest"]'));
+    
+    // Check if app is already installed
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+        console.log('App is running in standalone mode (already installed)');
+    } else {
+        console.log('App is running in browser mode');
+    }
+    
+    // Check for beforeinstallprompt support
+    console.log('Install prompt available:', !!deferredPrompt);
+}
+
+// Show install prompt
+function showInstallPrompt() {
+    const notification = document.createElement('div');
+    notification.className = 'install-notification';
+    notification.innerHTML = `
+        <div class="notification-content">
+            <span>📱 Install Knox POS as an app for better experience!</span>
+            <div class="notification-actions">
+                <button onclick="installPWA()" class="btn-install">Install</button>
+                <button onclick="dismissInstallPrompt(this)" class="btn-dismiss">Not now</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(notification);
+    
+    // Auto-dismiss after 10 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 10000);
+}
+
+// Install PWA
+window.installPWA = function() {
+    if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+                console.log('User accepted the PWA install prompt');
+            } else {
+                console.log('User dismissed the PWA install prompt');
+            }
+            deferredPrompt = null;
+        });
+    }
+    // Remove notification
+    const notification = document.querySelector('.install-notification');
+    if (notification) {
+        notification.remove();
+    }
+};
+
+// Dismiss install prompt
+window.dismissInstallPrompt = function(button) {
+    const notification = button.closest('.install-notification');
+    if (notification) {
+        notification.remove();
+    }
+};
 
 // Show update notification
 function showUpdateNotification() {

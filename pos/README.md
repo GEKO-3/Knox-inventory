@@ -1,4 +1,4 @@
-# Knox POS System
+# Knox POS System v1.2.0
 
 A complete Point of Sale system for Knox Restaurant, built as a separate PWA from the main inventory system.
 
@@ -8,6 +8,7 @@ A complete Point of Sale system for Knox Restaurant, built as a separate PWA fro
 - **Expandable Categories**: Recipes organized by category for easy navigation
 - **Product Variations**: Support for items with multiple options (Normal, Special, etc.)
 - **Variations Dialog**: Professional modal for selecting product variations
+- **Category Display**: Cart items show category badges for better organization
 - **Real-time Pricing**: Shows selling price and profit margin for each item
 - **Search Functionality**: Quick search through menu items (Ctrl+F)
 - **Mobile Optimized**: Touch-friendly interface designed for mobile devices
@@ -15,12 +16,22 @@ A complete Point of Sale system for Knox Restaurant, built as a separate PWA fro
 
 ### 🛒 Order Management
 - **Smart Cart**: Easy quantity adjustment with +/- buttons
+- **Category Display**: Items show category badges in cart (e.g., "[Beverages] Coffee")
 - **Variation Support**: Cart shows selected variations (e.g., "Burger (Spicy)")
 - **Live Calculations**: Real-time subtotal, tax, and total calculations in MVR
+- **Instant Item Removal**: No confirmation needed when removing items
 - **Sticky Buttons**: Save Order and Checkout buttons always visible at bottom
 - **Order Saving**: All orders saved to Firebase database
 - **Expandable Bills Panel**: Side navigation showing all saved bills
 - **Order History**: View, search, and reload past orders
+
+### 💰 Bill Management
+- **Payment Tracking**: Mark bills as paid/unpaid with visual status indicators
+- **Status Filtering**: Filter bills by All, Today, This Week, Paid, or Unpaid
+- **Bill Actions**: Mark bills as paid or delete bills directly from the list
+- **Visual Status**: Color-coded borders and badges for paid/unpaid status
+- **Firebase Sync**: Payment status synchronized across all devices
+- **Bill Deletion**: Remove unwanted bills with confirmation
 
 ### 🧾 Receipt System
 - **Professional Receipts**: Clean, printable receipt format in MVR currency
@@ -171,7 +182,30 @@ The POS system is designed to work alongside the main Knox Inventory System:
 - Multi-location support
 - Staff management and permissions
 
+## Version History
+
+### v1.2.0 (Current)
+- ✨ **Category Display**: Items in cart now show category badges
+- 💰 **Bill Management**: Mark bills as paid/unpaid with status tracking
+- 🔍 **Enhanced Filtering**: Filter bills by payment status
+- 🗑️ **Bill Deletion**: Remove unwanted bills from history
+- ⚡ **UX Improvements**: Instant item removal without confirmation
+- 🎨 **Visual Enhancements**: Color-coded status indicators
+
+### v1.1.0
+- 🎯 **Product Variations**: Full support for item variations and options
+- 📱 **Android Compatibility**: Enhanced touch handling for Android devices
+- 🔄 **PWA Updates**: Automatic update notifications and cache management
+- ⚡ **Performance**: Improved loading and event handling
+
+### v1.0.0
+- 🚀 **Initial Release**: Complete POS system with PWA support
+- 🍽️ **Menu Management**: Category-based menu with expandable sections
+- 🛒 **Cart System**: Full cart functionality with quantity management
+- 🧾 **Receipt System**: Professional receipt generation and printing
+- ⚙️ **Settings**: Configurable tax rates and receipt customization
+
 ---
 
-**Knox POS System v1.1.0**  
-Built for efficiency, designed for mobile, optimized for restaurants with product variations.
+**Knox POS System v1.2.0**  
+Built for efficiency, designed for mobile, optimized for restaurants with comprehensive bill management.
