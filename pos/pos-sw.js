@@ -1,10 +1,11 @@
-const CACHE_NAME = 'knox-pos-v1.0.0';
+const CACHE_NAME = 'knox-pos-v1.0.1';
 const urlsToCache = [
     './',
     './pos.html',
     './pos-styles.css',
     './pos-app.js',
     './pos-manifest.json',
+    './README.md',
     'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js',
     'https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js'
 ];

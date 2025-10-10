@@ -11,8 +11,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
 // App version
-const APP_VERSION = '1.0.0';
-console.log('Knox POS System v' + APP_VERSION);
+const APP_VERSION = '1.0.1';
+console.log('Knox POS System v' + APP_VERSION + ' - Tablet Optimized');
 
 // Global variables
 let recipes = [];
@@ -546,8 +546,67 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./pos-sw.js')
         .then(registration => {
             console.log('POS Service Worker registered:', registration);
+            
+            // Check for updates
+            registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        showUpdateNotification();
+                    }
+                });
+            });
         })
         .catch(error => {
             console.error('POS Service Worker registration failed:', error);
         });
+
+    // Listen for messages from service worker
+    navigator.serviceWorker.addEventListener('message', event => {
+        if (event.data && event.data.type === 'UPDATE_AVAILABLE') {
+            showUpdateNotification();
+        }
+    });
 }
+
+// Show update notification
+function showUpdateNotification() {
+    const notification = document.createElement('div');
+    notification.className = 'update-notification';
+    notification.innerHTML = `
+        <div class="update-content">
+            <span>🚀 Update available! New features and improvements.</span>
+            <button onclick="updateApp()" class="update-btn">Update Now</button>
+            <button onclick="dismissUpdate(this)" class="dismiss-btn">Later</button>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-dismiss after 10 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            dismissUpdate(notification);
+        }
+    }, 10000);
+}
+
+// Update the app
+window.updateApp = function() {
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
+        window.location.reload();
+    }
+};
+
+// Dismiss update notification
+window.dismissUpdate = function(element) {
+    const notification = element.closest ? element.closest('.update-notification') : element;
+    if (notification && notification.parentNode) {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateY(-20px)';
+        setTimeout(() => {
+            notification.parentNode.removeChild(notification);
+        }, 300);
+    }
+};
