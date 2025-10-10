@@ -59,7 +59,12 @@
     <div class="pos-container">
         <!-- Header -->
         <header class="pos-header">
-            <h1>Knox POS <span class="version-badge">v1.0.1</span></h1>
+            <div class="header-left">
+                <button class="btn-icon" id="nav-toggle" title="Show Bills">
+                    ☰
+                </button>
+                <h1>Knox POS <span class="version-badge">v1.0.1</span></h1>
+            </div>
             <div class="header-actions">
                 <button class="btn-icon" id="orders-history-btn" title="Order History">
                     📋
@@ -69,6 +74,32 @@
                 </button>
             </div>
         </header>
+
+        <!-- Expandable Bills Navigation Panel -->
+        <nav class="bills-nav" id="bills-nav">
+            <div class="bills-nav-header">
+                <h3>Saved Bills</h3>
+                <button class="close-nav" id="close-bills-nav">&times;</button>
+            </div>
+            <div class="bills-nav-content">
+                <div class="bills-search">
+                    <input type="text" id="bills-search" placeholder="Search bills..." />
+                </div>
+                <div class="bills-filter">
+                    <button class="filter-btn active" data-filter="all">All</button>
+                    <button class="filter-btn" data-filter="today">Today</button>
+                    <button class="filter-btn" data-filter="week">This Week</button>
+                </div>
+                <div class="bills-list" id="bills-list">
+                    <div class="loading-bills">
+                        <p>Loading saved bills...</p>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Overlay for nav panel -->
+        <div class="nav-overlay" id="nav-overlay"></div>
 
         <main class="pos-main">
             <!-- Left Panel - Menu -->

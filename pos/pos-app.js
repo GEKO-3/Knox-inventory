@@ -473,12 +473,27 @@ function setupEventListeners() {
         searchMenu(e.target.value);
     });
     
+    // Navigation
+    document.getElementById('nav-toggle').addEventListener('click', toggleBillsNav);
+    document.getElementById('close-bills-nav').addEventListener('click', closeBillsNav);
+    document.getElementById('nav-overlay').addEventListener('click', closeBillsNav);
+    
+    // Bills search and filter
+    document.getElementById('bills-search').addEventListener('input', (e) => {
+        filterBills(e.target.value);
+    });
+    
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            filterBillsByPeriod(e.target.dataset.filter);
+        });
+    });
+    
     // Cart actions
     document.getElementById('clear-cart').addEventListener('click', clearCart);
-    document.getElementById('save-order').addEventListener('click', () => {
-        // Save order without checkout (for later completion)
-        alert('Save order feature - to be implemented');
-    });
+    document.getElementById('save-order').addEventListener('click', saveCurrentOrder);
     document.getElementById('checkout').addEventListener('click', checkout);
     
     // Receipt actions
@@ -610,3 +625,179 @@ window.dismissUpdate = function(element) {
         }, 300);
     }
 };
+
+// Bills Navigation Functions
+let savedBills = [];
+let filteredBills = [];
+
+function toggleBillsNav() {
+    const nav = document.getElementById('bills-nav');
+    const overlay = document.getElementById('nav-overlay');
+    
+    if (nav.classList.contains('open')) {
+        closeBillsNav();
+    } else {
+        loadSavedBills();
+        nav.classList.add('open');
+        overlay.classList.add('active');
+    }
+}
+
+function closeBillsNav() {
+    const nav = document.getElementById('bills-nav');
+    const overlay = document.getElementById('nav-overlay');
+    
+    nav.classList.remove('open');
+    overlay.classList.remove('active');
+}
+
+async function loadSavedBills() {
+    try {
+        const ordersRef = ref(window.db, 'pos-orders');
+        const snapshot = await get(ordersRef);
+        
+        savedBills = [];
+        if (snapshot.exists()) {
+            snapshot.forEach(child => {
+                savedBills.push({ id: child.key, ...child.val() });
+            });
+        }
+        
+        // Sort by timestamp descending (newest first)
+        savedBills.sort((a, b) => b.timestamp - a.timestamp);
+        filteredBills = [...savedBills];
+        
+        displayBills(filteredBills);
+    } catch (error) {
+        console.error('Error loading saved bills:', error);
+        document.getElementById('bills-list').innerHTML = '<div class="error">Error loading bills</div>';
+    }
+}
+
+function displayBills(bills) {
+    const container = document.getElementById('bills-list');
+    
+    if (bills.length === 0) {
+        container.innerHTML = '<div class="loading-bills"><p>No bills found</p></div>';
+        return;
+    }
+    
+    container.innerHTML = bills.map(bill => {
+        const date = new Date(bill.timestamp);
+        const itemsText = bill.items.map(item => `${item.name} x${item.quantity}`).join(', ');
+        
+        return `
+            <div class="bill-item" onclick="loadBill('${bill.id}')">
+                <div class="bill-header">
+                    <span class="bill-id">#${bill.id.slice(-6).toUpperCase()}</span>
+                    <span class="bill-total">₱${bill.total.toFixed(2)}</span>
+                </div>
+                <div class="bill-date">${date.toLocaleString()}</div>
+                <div class="bill-items">${itemsText}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+function filterBills(searchQuery) {
+    if (!searchQuery.trim()) {
+        filteredBills = [...savedBills];
+    } else {
+        const query = searchQuery.toLowerCase();
+        filteredBills = savedBills.filter(bill => {
+            const billId = bill.id.toLowerCase();
+            const itemsText = bill.items.map(item => item.name.toLowerCase()).join(' ');
+            return billId.includes(query) || itemsText.includes(query);
+        });
+    }
+    
+    displayBills(filteredBills);
+}
+
+function filterBillsByPeriod(period) {
+    const now = new Date();
+    let startDate;
+    
+    switch (period) {
+        case 'today':
+            startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            break;
+        case 'week':
+            startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            break;
+        case 'all':
+        default:
+            filteredBills = [...savedBills];
+            displayBills(filteredBills);
+            return;
+    }
+    
+    filteredBills = savedBills.filter(bill => bill.timestamp >= startDate.getTime());
+    displayBills(filteredBills);
+}
+
+window.loadBill = function(billId) {
+    const bill = savedBills.find(b => b.id === billId);
+    if (!bill) return;
+    
+    // Load bill items into cart
+    cart = bill.items.map(item => ({ ...item }));
+    updateCartDisplay();
+    closeBillsNav();
+    
+    // Show confirmation
+    const notification = document.createElement('div');
+    notification.className = 'bill-loaded-notification';
+    notification.innerHTML = `
+        <div style="background: #28a745; color: white; padding: 12px 20px; border-radius: 8px; margin: 10px; box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);">
+            ✅ Bill #${billId.slice(-6).toUpperCase()} loaded into cart
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 3000);
+};
+
+async function saveCurrentOrder() {
+    if (cart.length === 0) {
+        alert('Cart is empty! Add items before saving.');
+        return;
+    }
+    
+    try {
+        const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        const tax = subtotal * (settings.taxRate / 100);
+        const total = subtotal + tax;
+        
+        const order = {
+            timestamp: Date.now(),
+            date: new Date().toISOString(),
+            items: [...cart],
+            subtotal: subtotal,
+            tax: tax,
+            taxRate: settings.taxRate,
+            total: total,
+            status: 'saved' // Different from completed orders
+        };
+        
+        const ordersRef = ref(window.db, 'pos-orders');
+        const orderRef = await push(ordersRef, order);
+        
+        // Show success message
+        alert(`Order saved as #${orderRef.key.slice(-6).toUpperCase()}`);
+        
+        // Optionally clear cart after saving
+        if (confirm('Clear cart after saving?')) {
+            cart = [];
+            updateCartDisplay();
+        }
+        
+    } catch (error) {
+        console.error('Error saving order:', error);
+        alert('Error saving order. Please try again.');
+    }
+}
