@@ -11,8 +11,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
 // App version
-const APP_VERSION = '1.1.0';
-console.log('Knox POS System v' + APP_VERSION + ' - Product Variations & Android Compatible');
+const APP_VERSION = '1.2.0';
+console.log('Knox POS System v' + APP_VERSION + ' - Category Display & Bill Management');
 
 // Global variables
 let recipes = [];
@@ -192,10 +192,29 @@ window.showVariationsModal = function(recipeId) {
     const recipe = recipes.find(r => r.id === recipeId);
     if (!recipe) {
         console.error('Recipe not found:', recipeId);
+        alert('Recipe not found: ' + recipeId);
         return;
     }
     
     console.log('Recipe found:', recipe.name, 'Has variations:', recipe.variations?.length || 0);
+    
+    // Force create variations for testing if none exist
+    if (!recipe.variations || recipe.variations.length === 0) {
+        console.log('No variations found, creating test variations');
+        recipe.variations = [
+            {
+                name: 'Large',
+                price: recipe.sellingPrice * 1.5,
+                description: 'Large size portion'
+            },
+            {
+                name: 'Extra Spicy',
+                price: recipe.sellingPrice + 5,
+                description: 'Extra spicy preparation',
+                isSpecial: true
+            }
+        ];
+    }
     
     currentVariationProduct = recipe;
     selectedVariation = null;
@@ -208,12 +227,16 @@ window.showVariationsModal = function(recipeId) {
     // Create variations list
     const variationsList = document.getElementById('variations-list');
     
+    // Get the base price - check multiple possible properties
+    const basePrice = recipe.sellingPrice || recipe.price || recipe.costPerUnit || 0;
+    console.log('Base price for', recipe.name, ':', basePrice);
+    
     // Add base/normal option
     const normalOption = `
         <div class="variation-option" data-variation="normal">
             <div class="variation-info">
                 <div class="variation-name">Normal</div>
-                <div class="variation-price">MVR ${recipe.sellingPrice.toFixed(2)}</div>
+                <div class="variation-price">MVR ${(basePrice || 0).toFixed(2)}</div>
                 <div class="variation-description-text">Standard preparation</div>
             </div>
             <div class="variation-badge">Default</div>
@@ -224,11 +247,13 @@ window.showVariationsModal = function(recipeId) {
     let variationsHtml = normalOption;
     if (recipe.variations && recipe.variations.length > 0) {
         recipe.variations.forEach((variation, index) => {
+            const variationPrice = variation.price || variation.sellingPrice || basePrice || 0;
+            console.log('Variation', variation.name, 'price:', variationPrice);
             variationsHtml += `
                 <div class="variation-option" data-variation="${index}">
                     <div class="variation-info">
-                        <div class="variation-name">${variation.name}</div>
-                        <div class="variation-price">MVR ${variation.price.toFixed(2)}</div>
+                        <div class="variation-name">${variation.name || 'Variation ' + (index + 1)}</div>
+                        <div class="variation-price">MVR ${(variationPrice).toFixed(2)}</div>
                         <div class="variation-description-text">${variation.description || 'Special preparation'}</div>
                     </div>
                     ${variation.isSpecial ? '<div class="variation-badge">Special</div>' : ''}
@@ -244,11 +269,29 @@ window.showVariationsModal = function(recipeId) {
     
     // Show modal
     const modal = document.getElementById('variations-modal');
+    if (!modal) {
+        console.error('Variations modal element not found!');
+        alert('Modal not found in DOM');
+        return;
+    }
+    
+    console.log('Modal element found, displaying...');
     modal.style.display = 'block';
-    console.log('Variations modal should now be visible');
+    modal.style.opacity = '1';
+    modal.style.visibility = 'visible';
+    modal.style.zIndex = '99999';
+    modal.classList.add('show');
+    console.log('Modal styles applied:', modal.style.cssText);
+    console.log('Modal classes:', modal.className);
+    console.log('Modal computed style:', window.getComputedStyle(modal).display);
     
     // Reset add button
-    document.getElementById('add-variation').disabled = true;
+    const addBtn = document.getElementById('add-variation');
+    if (addBtn) {
+        addBtn.disabled = true;
+    } else {
+        console.error('Add variation button not found!');
+    }
     
     // Force focus on modal for better accessibility
     setTimeout(() => {
@@ -256,6 +299,7 @@ window.showVariationsModal = function(recipeId) {
         if (firstVariation) {
             firstVariation.focus();
         }
+        console.log('Modal should be fully visible now');
     }, 100);
 };
 
@@ -319,19 +363,20 @@ window.addToCart = function(recipeId, variationData = null) {
     const recipe = recipes.find(r => r.id === recipeId);
     if (!recipe) return;
     
-    let itemName = recipe.name;
-    let itemPrice = recipe.sellingPrice;
+    const category = recipe.category || 'Other';
+    let itemName = `[${category}] ${recipe.name}`;
+    let itemPrice = recipe.sellingPrice || recipe.price || recipe.costPerUnit || 0;
     let itemId = recipeId;
     
     // Handle variation
     if (variationData) {
         if (variationData.type === 'variation' && recipe.variations) {
             const variation = recipe.variations[variationData.index];
-            itemName = `${recipe.name} (${variation.name})`;
-            itemPrice = variation.price;
+            itemName = `[${category}] ${recipe.name} (${variation.name})`;
+            itemPrice = variation.price || variation.sellingPrice || itemPrice || 0;
             itemId = `${recipeId}_var_${variationData.index}`;
         } else if (variationData.type === 'normal') {
-            itemName = `${recipe.name} (Normal)`;
+            itemName = `[${category}] ${recipe.name} (Normal)`;
             itemId = `${recipeId}_normal`;
         }
     }
@@ -389,14 +434,25 @@ function updateCartDisplay() {
     let subtotal = 0;
     
     cart.forEach(item => {
-        const itemTotal = item.price * item.quantity;
+        const safePrice = item.price || 0;
+        const itemTotal = safePrice * item.quantity;
         subtotal += itemTotal;
+        
+        // Parse category and item name for better display
+        const categoryMatch = item.name.match(/^\[([^\]]+)\]\s*(.+)$/);
+        let displayName;
+        if (categoryMatch) {
+            const [, category, itemName] = categoryMatch;
+            displayName = `<span class="item-category">[${category}]</span> ${itemName}`;
+        } else {
+            displayName = item.name;
+        }
         
         html += `
             <div class="cart-item">
                 <div class="cart-item-info">
-                    <div class="cart-item-name">${item.name}</div>
-                    <div class="cart-item-price">MVR ${item.price.toFixed(2)} each</div>
+                    <div class="cart-item-name">${displayName}</div>
+                    <div class="cart-item-price">MVR ${safePrice.toFixed(2)} each</div>
                 </div>
                 <div class="cart-item-controls">
                     <button class="qty-btn ${item.quantity === 1 ? 'qty-btn-remove' : ''}" onclick="updateQuantity('${item.id}', -1)" title="${item.quantity === 1 ? 'Remove item' : 'Decrease quantity'}">-</button>
@@ -423,16 +479,13 @@ window.updateQuantity = function(itemId, change) {
     const item = cart.find(item => item.id === itemId);
     if (!item) return;
     
-    // If decreasing quantity and it would go to 0, show confirmation
+    // If decreasing quantity and it would go to 0, remove item directly
     if (change < 0 && item.quantity === 1) {
-        const itemPrice = `MVR ${(item.price * item.quantity).toFixed(2)}`;
-        if (confirm(`Remove "${item.name}" from cart?\n\nThis will remove ${itemPrice} from your order total.`)) {
-            cart = cart.filter(cartItem => cartItem.id !== itemId);
-            updateCartDisplay();
-            
-            // Show removal feedback
-            showItemRemovedNotification(item.name);
-        }
+        cart = cart.filter(cartItem => cartItem.id !== itemId);
+        updateCartDisplay();
+        
+        // Show removal feedback
+        showItemRemovedNotification(item.name);
         return;
     }
     
@@ -921,15 +974,21 @@ function displayBills(bills) {
     container.innerHTML = bills.map(bill => {
         const date = new Date(bill.timestamp);
         const itemsText = bill.items.map(item => `${item.name} x${item.quantity}`).join(', ');
+        const isPaid = bill.paid || false;
         
         return `
-            <div class="bill-item" onclick="loadBill('${bill.id}')">
+            <div class="bill-item ${isPaid ? 'paid' : 'unpaid'}" onclick="loadBill('${bill.id}')">
                 <div class="bill-header">
                     <span class="bill-id">#${bill.id.slice(-6).toUpperCase()}</span>
                     <span class="bill-total">MVR ${bill.total.toFixed(2)}</span>
+                    <span class="bill-status ${isPaid ? 'status-paid' : 'status-unpaid'}">${isPaid ? 'PAID' : 'UNPAID'}</span>
                 </div>
                 <div class="bill-date">${date.toLocaleString()}</div>
                 <div class="bill-items">${itemsText}</div>
+                <div class="bill-actions" onclick="event.stopPropagation()">
+                    ${!isPaid ? `<button class="btn-pay" onclick="markAsPaid('${bill.id}')">Mark as Paid</button>` : ''}
+                    <button class="btn-delete" onclick="deleteBill('${bill.id}')" title="Delete Bill">🗑️</button>
+                </div>
             </div>
         `;
     }).join('');
@@ -957,20 +1016,73 @@ function filterBillsByPeriod(period) {
     switch (period) {
         case 'today':
             startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            filteredBills = savedBills.filter(bill => bill.timestamp >= startDate.getTime());
             break;
         case 'week':
             startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            filteredBills = savedBills.filter(bill => bill.timestamp >= startDate.getTime());
+            break;
+        case 'paid':
+            filteredBills = savedBills.filter(bill => bill.paid === true);
+            break;
+        case 'unpaid':
+            filteredBills = savedBills.filter(bill => !bill.paid);
             break;
         case 'all':
         default:
             filteredBills = [...savedBills];
-            displayBills(filteredBills);
-            return;
+            break;
     }
     
-    filteredBills = savedBills.filter(bill => bill.timestamp >= startDate.getTime());
     displayBills(filteredBills);
 }
+
+// Apply current filter (helper function for refreshing display)
+function applyCurrentFilter() {
+    const activeFilter = document.querySelector('.filter-btn.active');
+    const currentFilter = activeFilter ? activeFilter.dataset.filter : 'all';
+    filterBillsByPeriod(currentFilter);
+}
+
+// Mark bill as paid
+window.markAsPaid = function(billId) {
+    const bill = savedBills.find(b => b.id === billId);
+    if (bill) {
+        bill.paid = true;
+        bill.paidAt = Date.now();
+        
+        // Update in Firebase
+        const billsRef = database.ref('orders');
+        billsRef.child(billId).update({
+            paid: true,
+            paidAt: bill.paidAt
+        }).then(() => {
+            console.log('Bill marked as paid in Firebase');
+            // Update the display
+            applyCurrentFilter();
+        }).catch((error) => {
+            console.error('Error updating bill in Firebase:', error);
+        });
+    }
+};
+
+// Delete bill
+window.deleteBill = function(billId) {
+    if (confirm('Are you sure you want to delete this bill? This action cannot be undone.')) {
+        // Remove from local array
+        savedBills = savedBills.filter(bill => bill.id !== billId);
+        
+        // Remove from Firebase
+        const billsRef = database.ref('orders');
+        billsRef.child(billId).remove().then(() => {
+            console.log('Bill deleted from Firebase');
+            // Update the display
+            applyCurrentFilter();
+        }).catch((error) => {
+            console.error('Error deleting bill from Firebase:', error);
+        });
+    }
+};
 
 window.loadBill = function(billId) {
     const bill = savedBills.find(b => b.id === billId);
