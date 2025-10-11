@@ -11,8 +11,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
 // App version
-const APP_VERSION = '1.2.0';
-console.log('Knox POS System v' + APP_VERSION + ' - Category Display & Bill Management');
+const APP_VERSION = '1.2.1';
+console.log('Knox POS System v' + APP_VERSION + ' - Enhanced Scroll Detection & UI Improvements');
 
 // Global variables
 let recipes = [];

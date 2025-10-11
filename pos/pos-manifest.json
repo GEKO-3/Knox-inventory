@@ -1,8 +1,8 @@
 {
     "name": "Knox POS System",
     "short_name": "Knox POS",
-    "description": "Point of Sale system for Knox Restaurant - Category display, bill management, and mobile-optimized ordering",
-    "version": "1.2.0",
+    "description": "Point of Sale system for Knox Restaurant - Enhanced scroll detection, category display, and bill management",
+    "version": "1.2.1",
     "start_url": "./pos.html",
     "display": "standalone",
     "orientation": "portrait",

@@ -1,4 +1,4 @@
-# Knox POS System v1.2.0
+# Knox POS System v1.2.1
 
 A complete Point of Sale system for Knox Restaurant, built as a separate PWA from the main inventory system.
 
@@ -184,7 +184,14 @@ The POS system is designed to work alongside the main Knox Inventory System:
 
 ## Version History
 
-### v1.2.0 (Current)
+### v1.2.1 (Current)
+- 🎯 **Enhanced Scroll Detection**: Fixed variations dialog appearing during scrolling
+- 📱 **Touch Gesture Analysis**: Smart filtering of scroll vs tap gestures
+- 🚀 **PWA Installation**: Fixed manifest icons and added install prompts
+- 🔧 **Touch Sensitivity**: Improved touch handling for better mobile experience
+- 🐛 **Bug Fixes**: Resolved unwanted dialog triggers during navigation
+
+### v1.2.0
 - ✨ **Category Display**: Items in cart now show category badges
 - 💰 **Bill Management**: Mark bills as paid/unpaid with status tracking
 - 🔍 **Enhanced Filtering**: Filter bills by payment status
@@ -207,5 +214,5 @@ The POS system is designed to work alongside the main Knox Inventory System:
 
 ---
 
-**Knox POS System v1.2.0**  
-Built for efficiency, designed for mobile, optimized for restaurants with comprehensive bill management.
+**Knox POS System v1.2.1**  
+Built for efficiency, designed for mobile, optimized for restaurants with enhanced touch handling and comprehensive bill management.
