@@ -11,7 +11,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
 // App version
-const APP_VERSION = '1.3.0';
+const APP_VERSION = '1.3.1';
 console.log('Knox POS System v' + APP_VERSION + ' - Customer Names & Bill Management Fixes');
 
 // Global variables
@@ -1279,55 +1279,68 @@ function closeVariationsModal() {
     currentVariationItem = null;
     selectedVariation = null;
     currentEditMode = false;
+    
+    // Reset add button text
+    const addBtn = document.getElementById('add-variation');
+    if (addBtn) {
+        addBtn.textContent = 'Add to Cart';
+    }
 }
 
 // Add selected variation to cart
 function addSelectedVariation() {
-    if (!currentVariationItem) return;
-    
-    // Get selected variations
-    const selectedVariations = {};
-    const variationGroups = document.querySelectorAll('.variation-group');
-    
-    let allSelected = true;
-    variationGroups.forEach(group => {
-        const variationType = group.querySelector('h4').textContent;
-        const selectedOption = group.querySelector('input[type="radio"]:checked');
-        
-        if (selectedOption) {
-            selectedVariations[variationType] = {
-                name: selectedOption.value,
-                price: parseFloat(selectedOption.dataset.price || 0)
-            };
-        } else {
-            allSelected = false;
+    // Check if we're in edit mode
+    if (currentEditMode && currentVariationItem) {
+        if (selectedVariation === null) {
+            alert('Please select a variation option');
+            return;
         }
-    });
-    
-    if (!allSelected) {
-        alert('Please select all variation options');
+        
+        // Parse the selected variation for edit mode
+        const selectedElement = document.querySelector(`.variation-option[data-variation="${selectedVariation}"]`);
+        if (!selectedElement) {
+            alert('Invalid selection');
+            return;
+        }
+        
+        const selectedVariations = {};
+        
+        // If it's a complex variation with type and option data
+        const variationType = selectedElement.dataset.type;
+        const optionName = selectedElement.dataset.optionName;
+        const optionPrice = parseFloat(selectedElement.dataset.optionPrice || 0);
+        
+        if (variationType && optionName) {
+            selectedVariations[variationType] = {
+                name: optionName,
+                price: optionPrice
+            };
+        } else if (selectedVariation === 'normal') {
+            // Handle normal option
+            selectedVariations = {};
+        }
+        
+        addToEditCart(currentVariationItem, selectedVariations);
+        showSuccessNotification('✅ Added to order');
+        closeVariationsModal();
         return;
     }
     
-    // Add to appropriate cart based on mode
-    if (currentEditMode) {
-        addToEditCart(currentVariationItem, selectedVariations);
-        // Show success feedback
-        showSuccessNotification('✅ Added to order');
+    // Original variation system for regular cart
+    if (!currentVariationProduct || selectedVariation === null) return;
+    
+    let variationData;
+    if (selectedVariation === 'normal') {
+        variationData = { type: 'normal' };
     } else {
-        let variationData;
-        if (selectedVariation === 'normal') {
-            variationData = { type: 'normal' };
-        } else {
-            variationData = { type: 'variation', index: selectedVariation };
-        }
-        
-        addToCart(currentVariationItem.id, variationData);
-        // Show success feedback
-        showSuccessNotification('✅ Added to cart');
+        variationData = { type: 'variation', index: selectedVariation };
     }
     
+    addToCart(currentVariationProduct.id, variationData);
     closeVariationsModal();
+    
+    // Show success feedback
+    showSuccessNotification('✅ Added to cart');
 }
 
 // Show item removed notification
@@ -1557,7 +1570,7 @@ function searchMenuItemsForEdit(searchTerm) {
         return;
     }
     
-    const filteredItems = menuItems.filter(item => 
+    const filteredItems = recipes.filter(item => 
         item.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
     
@@ -1575,7 +1588,7 @@ function searchMenuItemsForEdit(searchTerm) {
         itemDiv.innerHTML = `
             <div class="edit-menu-item-info">
                 <div class="edit-menu-item-name">${item.name}</div>
-                <div class="edit-menu-item-price">MVR ${item.price.toFixed(2)}</div>
+                <div class="edit-menu-item-price">MVR ${(item.sellingPrice || item.price || item.costPerUnit || 0).toFixed(2)}</div>
             </div>
             <button class="btn-add-item" onclick="addItemToEditOrder('${item.id}')">Add</button>
         `;
@@ -1585,7 +1598,7 @@ function searchMenuItemsForEdit(searchTerm) {
 }
 
 function addItemToEditOrder(itemId) {
-    const item = menuItems.find(i => i.id === itemId);
+    const item = recipes.find(i => i.id === itemId);
     if (!item) return;
     
     // Check if item has variations
@@ -1602,41 +1615,70 @@ function showVariationsForEdit(item) {
     currentVariationItem = item;
     currentEditMode = true;
     
-    document.getElementById('variation-item-name').textContent = item.name;
-    document.getElementById('variation-base-price').textContent = `Base Price: MVR ${item.price.toFixed(2)}`;
+    // Use the existing variation modal elements
+    document.getElementById('variation-product-name').textContent = item.name;
+    document.getElementById('variation-description').textContent = `Choose your preferred option for ${item.name}`;
     
-    const variationsContainer = document.getElementById('variations-container');
-    variationsContainer.innerHTML = '';
+    // Update the add button text for edit mode
+    const addBtn = document.getElementById('add-variation');
+    addBtn.textContent = 'Add to Order';
+    addBtn.disabled = true;
     
-    Object.entries(item.variations).forEach(([variationType, options]) => {
-        const variationDiv = document.createElement('div');
-        variationDiv.className = 'variation-group';
-        variationDiv.innerHTML = `<h4>${variationType}</h4>`;
+    // Create variations list using the original system structure
+    const variationsList = document.getElementById('variations-list');
+    
+    // Get the base price
+    const basePrice = item.price || 0;
+    
+    // If item has the new variation structure (object with types)
+    if (item.variations && typeof item.variations === 'object' && !Array.isArray(item.variations)) {
+        let variationsHtml = '';
         
-        options.forEach(option => {
-            const optionDiv = document.createElement('div');
-            optionDiv.className = 'variation-option';
+        Object.entries(item.variations).forEach(([variationType, options]) => {
+            variationsHtml += `<h4 style="margin: 15px 0 10px 0; color: #333;">${variationType}</h4>`;
             
-            const extraPrice = option.price > 0 ? ` (+MVR ${option.price.toFixed(2)})` : '';
-            
-            optionDiv.innerHTML = `
-                <label>
-                    <input type="radio" name="${variationType}" value="${option.name}" data-price="${option.price}">
-                    ${option.name}${extraPrice}
-                </label>
-            `;
-            
-            variationDiv.appendChild(optionDiv);
+            options.forEach((option, index) => {
+                const variationPrice = basePrice + (option.price || 0);
+                const extraPrice = option.price > 0 ? ` (+MVR ${option.price.toFixed(2)})` : '';
+                const optionId = `${variationType}_${index}`;
+                
+                variationsHtml += `
+                    <div class="variation-option" data-variation="${optionId}" data-type="${variationType}" data-option-name="${option.name}" data-option-price="${option.price || 0}">
+                        <div class="variation-info">
+                            <div class="variation-name">${option.name}${extraPrice}</div>
+                            <div class="variation-price">MVR ${variationPrice.toFixed(2)}</div>
+                            <div class="variation-description-text">${option.description || 'Special preparation'}</div>
+                        </div>
+                    </div>
+                `;
+            });
         });
         
-        variationsContainer.appendChild(variationDiv);
-    });
+        variationsList.innerHTML = variationsHtml;
+    } else {
+        // Fallback for old variation structure
+        let variationsHtml = `
+            <div class="variation-option" data-variation="normal">
+                <div class="variation-info">
+                    <div class="variation-name">Normal</div>
+                    <div class="variation-price">MVR ${basePrice.toFixed(2)}</div>
+                    <div class="variation-description-text">Standard preparation</div>
+                </div>
+                <div class="variation-badge">Default</div>
+            </div>
+        `;
+        
+        variationsList.innerHTML = variationsHtml;
+    }
+    
+    // Setup variation click handlers
+    setupVariationClickHandlers();
     
     document.getElementById('variations-modal').style.display = 'block';
 }
 
 function addToEditCart(item, selectedVariations) {
-    let totalPrice = item.price;
+    let totalPrice = item.sellingPrice || item.price || item.costPerUnit || 0;
     
     // Calculate total price with variations
     Object.values(selectedVariations).forEach(variation => {

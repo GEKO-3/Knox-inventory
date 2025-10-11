@@ -1,4 +1,4 @@
-# Knox POS System v1.3.0
+# Knox POS System v1.3.1
 
 A complete Point of Sale system for Knox Restaurant, built as a separate PWA from the main inventory system.
 
@@ -205,7 +205,15 @@ The POS system is designed to work alongside the main Knox Inventory System:
 
 ## Version History
 
-### v1.3.0 (Current)
+### v1.3.1 (Current)
+- 🐛 **Variation Fixes**: Fixed critical bug preventing items with variations from being added to cart
+- 🔧 **Modal Integration**: Unified variation system between regular cart and edit order mode
+- 📊 **Data Source Fix**: Corrected data source references from menuItems to recipes array
+- 💰 **Price Field Fix**: Fixed price field inconsistencies using sellingPrice priority
+- ⚡ **Performance**: Improved variation handling and modal state management
+- 🎯 **Compatibility**: Enhanced compatibility between edit mode and regular cart variations
+
+### v1.3.0
 - ✏️ **Order Editing**: Edit unpaid orders to add/remove items and modify quantities
 - 🔄 **Edit Modal**: Comprehensive edit interface with customer name updates
 - 🔍 **Menu Search**: Search and add new items to existing orders during editing
