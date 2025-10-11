@@ -19,6 +19,9 @@ let recipes = [];
 let cart = [];
 let currentVariationProduct = null;
 let deferredPrompt;
+let isScrolling = false;
+let touchStartY = 0;
+let touchStartTime = 0;
 let selectedVariation = null;
 let settings = {
     taxRate: 12,
@@ -36,6 +39,7 @@ async function initializePOS() {
         await loadRecipes();
         loadSettings();
         setupEventListeners();
+        setupScrollDetection();
         renderMenu();
         updateCartDisplay();
         setupMenuClickHandlers();
@@ -143,14 +147,89 @@ function setupMenuClickHandlers() {
     // Remove existing listeners
     menuContainer.removeEventListener('click', handleMenuClick);
     menuContainer.removeEventListener('touchend', handleMenuClick);
+    menuContainer.removeEventListener('touchstart', handleTouchStart);
+    menuContainer.removeEventListener('scroll', handleScroll);
+    
+    // Add touch tracking and scroll detection
+    menuContainer.addEventListener('touchstart', handleTouchStart, { passive: true });
+    menuContainer.addEventListener('scroll', handleScroll, { passive: true });
     
     // Add both click and touchend for Android compatibility
     menuContainer.addEventListener('click', handleMenuClick, { passive: false });
     menuContainer.addEventListener('touchend', handleMenuClick, { passive: false });
 }
 
+// Handle touch start for scroll detection
+function handleTouchStart(e) {
+    if (e.touches && e.touches.length > 0) {
+        touchStartY = e.touches[0].clientY;
+        touchStartTime = Date.now();
+        isScrolling = false;
+        
+        // Store initial scroll position for additional validation
+        const container = document.querySelector('main') || document.getElementById('menu-categories');
+        if (container) {
+            window.touchStartScrollTop = container.scrollTop;
+        }
+    }
+}
+
+// Setup global scroll detection
+function setupScrollDetection() {
+    // Listen for scroll on main content area
+    const mainContent = document.querySelector('main');
+    const menuContainer = document.getElementById('menu-categories');
+    
+    [mainContent, menuContainer, window].forEach(element => {
+        if (element) {
+            element.addEventListener('scroll', handleScroll, { passive: true });
+        }
+    });
+}
+
+// Handle scroll events
+function handleScroll(e) {
+    isScrolling = true;
+    console.log('Scroll detected - blocking clicks temporarily');
+    
+    // Clear scrolling flag after a short delay
+    clearTimeout(handleScroll.timeout);
+    handleScroll.timeout = setTimeout(() => {
+        isScrolling = false;
+        console.log('Scroll ended - clicks re-enabled');
+    }, 200);
+}
+
 // Handle menu item clicks
 function handleMenuClick(e) {
+    // Check if we're currently scrolling
+    if (isScrolling) {
+        console.log('Ignoring click during scroll');
+        return;
+    }
+    
+    // For touch events, check if this was a scroll gesture
+    if (e.type === 'touchend' && e.changedTouches && e.changedTouches.length > 0) {
+        const touchEndY = e.changedTouches[0].clientY;
+        const touchEndTime = Date.now();
+        const touchDistance = Math.abs(touchEndY - touchStartY);
+        const touchDuration = touchEndTime - touchStartTime;
+        
+        // Check if scroll position actually changed
+        const container = document.querySelector('main') || document.getElementById('menu-categories');
+        const scrollChanged = container && Math.abs(container.scrollTop - (window.touchStartScrollTop || 0)) > 5;
+        
+        // If touch moved more than 8px, lasted longer than 250ms, or scroll position changed, likely a scroll
+        if (touchDistance > 8 || touchDuration > 250 || scrollChanged) {
+            console.log('Ignoring touch - scroll gesture detected:', {
+                distance: touchDistance,
+                duration: touchDuration,
+                scrollChanged: scrollChanged
+            });
+            return;
+        }
+    }
+    
     // Prevent default behavior and stop propagation
     if (e.preventDefault) e.preventDefault();
     if (e.stopPropagation) e.stopPropagation();
