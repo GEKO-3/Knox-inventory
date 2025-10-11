@@ -11,7 +11,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
 // App version
-const APP_VERSION = '1.2.2';
+const APP_VERSION = '1.3.0';
 console.log('Knox POS System v' + APP_VERSION + ' - Customer Names & Bill Management Fixes');
 
 // Global variables
@@ -1159,6 +1159,7 @@ function displayBills(bills) {
                 ${bill.customerName ? `<div class="bill-customer">Customer: ${bill.customerName}</div>` : ''}
                 <div class="bill-items">${itemsText}</div>
                 <div class="bill-actions" onclick="event.stopPropagation()">
+                    ${!isPaid ? `<button class="btn-edit" onclick="editBill('${bill.id}')" title="Edit Order">✏️</button>` : ''}
                     ${!isPaid ? `<button class="btn-pay" onclick="markAsPaid('${bill.id}')">Mark as Paid</button>` : ''}
                     <button class="btn-delete" onclick="deleteBill('${bill.id}')" title="Delete Bill">🗑️</button>
                 </div>
@@ -1275,25 +1276,58 @@ window.loadBill = function(billId) {
 function closeVariationsModal() {
     document.getElementById('variations-modal').style.display = 'none';
     currentVariationProduct = null;
+    currentVariationItem = null;
     selectedVariation = null;
+    currentEditMode = false;
 }
 
 // Add selected variation to cart
 function addSelectedVariation() {
-    if (!currentVariationProduct || selectedVariation === null) return;
+    if (!currentVariationItem) return;
     
-    let variationData;
-    if (selectedVariation === 'normal') {
-        variationData = { type: 'normal' };
-    } else {
-        variationData = { type: 'variation', index: selectedVariation };
+    // Get selected variations
+    const selectedVariations = {};
+    const variationGroups = document.querySelectorAll('.variation-group');
+    
+    let allSelected = true;
+    variationGroups.forEach(group => {
+        const variationType = group.querySelector('h4').textContent;
+        const selectedOption = group.querySelector('input[type="radio"]:checked');
+        
+        if (selectedOption) {
+            selectedVariations[variationType] = {
+                name: selectedOption.value,
+                price: parseFloat(selectedOption.dataset.price || 0)
+            };
+        } else {
+            allSelected = false;
+        }
+    });
+    
+    if (!allSelected) {
+        alert('Please select all variation options');
+        return;
     }
     
-    addToCart(currentVariationProduct.id, variationData);
-    closeVariationsModal();
+    // Add to appropriate cart based on mode
+    if (currentEditMode) {
+        addToEditCart(currentVariationItem, selectedVariations);
+        // Show success feedback
+        showSuccessNotification('✅ Added to order');
+    } else {
+        let variationData;
+        if (selectedVariation === 'normal') {
+            variationData = { type: 'normal' };
+        } else {
+            variationData = { type: 'variation', index: selectedVariation };
+        }
+        
+        addToCart(currentVariationItem.id, variationData);
+        // Show success feedback
+        showSuccessNotification('✅ Added to cart');
+    }
     
-    // Show success feedback
-    showSuccessNotification('✅ Added to cart');
+    closeVariationsModal();
 }
 
 // Show item removed notification
@@ -1369,3 +1403,315 @@ async function saveCurrentOrder() {
         alert('Error saving order. Please try again.');
     }
 }
+
+// Edit Order functionality
+let currentEditingBill = null;
+let editOrderCart = [];
+let currentEditMode = false;
+
+function editBill(billId) {
+    const billRef = ref(database, `bills/${billId}`);
+    get(billRef).then((snapshot) => {
+        if (snapshot.exists()) {
+            const bill = snapshot.val();
+            if (bill.status === 'paid') {
+                alert('Cannot edit paid orders');
+                return;
+            }
+            
+            currentEditingBill = billId;
+            editOrderCart = [...bill.items];
+            
+            // Populate edit modal
+            document.getElementById('edit-customer-name').value = bill.customerName || '';
+            populateEditItems();
+            updateEditOrderSummary();
+            
+            // Clear search
+            document.getElementById('edit-menu-search').value = '';
+            document.getElementById('edit-menu-results').innerHTML = '';
+            
+            // Show modal
+            document.getElementById('edit-order-modal').style.display = 'block';
+        }
+    }).catch((error) => {
+        console.error('Error loading bill:', error);
+        alert('Error loading order');
+    });
+}
+
+function populateEditItems() {
+    const itemsList = document.getElementById('edit-items-list');
+    itemsList.innerHTML = '';
+    
+    if (editOrderCart.length === 0) {
+        itemsList.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">No items in order</p>';
+        return;
+    }
+    
+    editOrderCart.forEach((item, index) => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'edit-item';
+        
+        const variations = item.variations ? Object.entries(item.variations).map(([key, value]) => `${key}: ${value.name || value}`).join(', ') : '';
+        
+        itemDiv.innerHTML = `
+            <div class="edit-item-info">
+                <div class="edit-item-name">${item.name}</div>
+                ${variations ? `<div class="edit-item-details">${variations}</div>` : ''}
+                <div class="edit-item-price">MVR ${item.totalPrice.toFixed(2)}</div>
+            </div>
+            <div class="edit-item-controls">
+                <div class="qty-controls">
+                    <button class="qty-btn" onclick="changeEditItemQuantity(${index}, -1)">-</button>
+                    <span class="qty-display">${item.quantity}</span>
+                    <button class="qty-btn" onclick="changeEditItemQuantity(${index}, 1)">+</button>
+                </div>
+                <button class="btn-remove-item" onclick="removeEditItem(${index})">Remove</button>
+            </div>
+        `;
+        
+        itemsList.appendChild(itemDiv);
+    });
+}
+
+function changeEditItemQuantity(index, change) {
+    if (editOrderCart[index]) {
+        const newQuantity = editOrderCart[index].quantity + change;
+        if (newQuantity > 0) {
+            editOrderCart[index].quantity = newQuantity;
+            editOrderCart[index].totalPrice = editOrderCart[index].price * newQuantity;
+        } else {
+            removeEditItem(index);
+            return;
+        }
+        populateEditItems();
+        updateEditOrderSummary();
+    }
+}
+
+function removeEditItem(index) {
+    editOrderCart.splice(index, 1);
+    populateEditItems();
+    updateEditOrderSummary();
+}
+
+function updateEditOrderSummary() {
+    const subtotal = editOrderCart.reduce((sum, item) => sum + item.totalPrice, 0);
+    const tax = subtotal * 0.08;
+    const total = subtotal + tax;
+    
+    document.getElementById('edit-subtotal').textContent = `MVR ${subtotal.toFixed(2)}`;
+    document.getElementById('edit-tax').textContent = `MVR ${tax.toFixed(2)}`;
+    document.getElementById('edit-total').textContent = `MVR ${total.toFixed(2)}`;
+}
+
+function setupEditOrderModal() {
+    const modal = document.getElementById('edit-order-modal');
+    const closeBtn = document.getElementById('close-edit-order');
+    const cancelBtn = document.getElementById('cancel-edit-order');
+    const saveBtn = document.getElementById('save-edit-order');
+    const searchInput = document.getElementById('edit-menu-search');
+    
+    // Close modal handlers
+    closeBtn.onclick = () => {
+        modal.style.display = 'none';
+        currentEditingBill = null;
+        editOrderCart = [];
+        currentEditMode = false;
+    };
+    
+    cancelBtn.onclick = () => {
+        modal.style.display = 'none';
+        currentEditingBill = null;
+        editOrderCart = [];
+        currentEditMode = false;
+    };
+    
+    // Click outside to close
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            modal.style.display = 'none';
+            currentEditingBill = null;
+            editOrderCart = [];
+            currentEditMode = false;
+        }
+    };
+    
+    // Save changes
+    saveBtn.onclick = () => {
+        saveEditOrder();
+    };
+    
+    // Search functionality
+    searchInput.addEventListener('input', (e) => {
+        searchMenuItemsForEdit(e.target.value);
+    });
+}
+
+function searchMenuItemsForEdit(searchTerm) {
+    const resultsDiv = document.getElementById('edit-menu-results');
+    
+    if (!searchTerm.trim()) {
+        resultsDiv.innerHTML = '';
+        return;
+    }
+    
+    const filteredItems = menuItems.filter(item => 
+        item.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    
+    resultsDiv.innerHTML = '';
+    
+    if (filteredItems.length === 0) {
+        resultsDiv.innerHTML = '<div style="padding: 15px; text-align: center; color: #666;">No items found</div>';
+        return;
+    }
+    
+    filteredItems.forEach(item => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'edit-menu-item';
+        
+        itemDiv.innerHTML = `
+            <div class="edit-menu-item-info">
+                <div class="edit-menu-item-name">${item.name}</div>
+                <div class="edit-menu-item-price">MVR ${item.price.toFixed(2)}</div>
+            </div>
+            <button class="btn-add-item" onclick="addItemToEditOrder('${item.id}')">Add</button>
+        `;
+        
+        resultsDiv.appendChild(itemDiv);
+    });
+}
+
+function addItemToEditOrder(itemId) {
+    const item = menuItems.find(i => i.id === itemId);
+    if (!item) return;
+    
+    // Check if item has variations
+    if (item.variations && Object.keys(item.variations).length > 0) {
+        // Show variations modal for edit order
+        showVariationsForEdit(item);
+    } else {
+        // Add item directly
+        addToEditCart(item, {});
+    }
+}
+
+function showVariationsForEdit(item) {
+    currentVariationItem = item;
+    currentEditMode = true;
+    
+    document.getElementById('variation-item-name').textContent = item.name;
+    document.getElementById('variation-base-price').textContent = `Base Price: MVR ${item.price.toFixed(2)}`;
+    
+    const variationsContainer = document.getElementById('variations-container');
+    variationsContainer.innerHTML = '';
+    
+    Object.entries(item.variations).forEach(([variationType, options]) => {
+        const variationDiv = document.createElement('div');
+        variationDiv.className = 'variation-group';
+        variationDiv.innerHTML = `<h4>${variationType}</h4>`;
+        
+        options.forEach(option => {
+            const optionDiv = document.createElement('div');
+            optionDiv.className = 'variation-option';
+            
+            const extraPrice = option.price > 0 ? ` (+MVR ${option.price.toFixed(2)})` : '';
+            
+            optionDiv.innerHTML = `
+                <label>
+                    <input type="radio" name="${variationType}" value="${option.name}" data-price="${option.price}">
+                    ${option.name}${extraPrice}
+                </label>
+            `;
+            
+            variationDiv.appendChild(optionDiv);
+        });
+        
+        variationsContainer.appendChild(variationDiv);
+    });
+    
+    document.getElementById('variations-modal').style.display = 'block';
+}
+
+function addToEditCart(item, selectedVariations) {
+    let totalPrice = item.price;
+    
+    // Calculate total price with variations
+    Object.values(selectedVariations).forEach(variation => {
+        totalPrice += variation.price || 0;
+    });
+    
+    // Check if same item with same variations exists
+    const existingIndex = editOrderCart.findIndex(cartItem => 
+        cartItem.id === item.id && 
+        JSON.stringify(cartItem.variations) === JSON.stringify(selectedVariations)
+    );
+    
+    if (existingIndex !== -1) {
+        editOrderCart[existingIndex].quantity += 1;
+        editOrderCart[existingIndex].totalPrice = editOrderCart[existingIndex].price * editOrderCart[existingIndex].quantity;
+    } else {
+        editOrderCart.push({
+            id: item.id,
+            name: item.name,
+            price: totalPrice,
+            quantity: 1,
+            totalPrice: totalPrice,
+            variations: selectedVariations
+        });
+    }
+    
+    populateEditItems();
+    updateEditOrderSummary();
+    
+    // Clear search
+    document.getElementById('edit-menu-search').value = '';
+    document.getElementById('edit-menu-results').innerHTML = '';
+}
+
+function saveEditOrder() {
+    if (!currentEditingBill) return;
+    
+    const customerName = document.getElementById('edit-customer-name').value.trim();
+    const subtotal = editOrderCart.reduce((sum, item) => sum + item.totalPrice, 0);
+    const tax = subtotal * 0.08;
+    const total = subtotal + tax;
+    
+    if (editOrderCart.length === 0) {
+        alert('Cannot save empty order');
+        return;
+    }
+    
+    const updatedBill = {
+        items: editOrderCart,
+        customerName: customerName,
+        subtotal: subtotal,
+        tax: tax,
+        total: total,
+        updatedAt: new Date().toISOString()
+    };
+    
+    const billRef = ref(database, `bills/${currentEditingBill}`);
+    update(billRef, updatedBill).then(() => {
+        alert('Order updated successfully!');
+        document.getElementById('edit-order-modal').style.display = 'none';
+        currentEditingBill = null;
+        editOrderCart = [];
+        currentEditMode = false;
+        
+        // Refresh bills display if hamburger menu is open
+        if (document.getElementById('hamburger-menu').classList.contains('active')) {
+            displayBills();
+        }
+    }).catch((error) => {
+        console.error('Error updating order:', error);
+        alert('Error updating order');
+    });
+}
+
+// Initialize edit order modal when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    setupEditOrderModal();
+});

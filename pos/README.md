@@ -1,4 +1,4 @@
-# Knox POS System v1.2.2
+# Knox POS System v1.3.0
 
 A complete Point of Sale system for Knox Restaurant, built as a separate PWA from the main inventory system.
 
@@ -36,11 +36,22 @@ A complete Point of Sale system for Knox Restaurant, built as a separate PWA fro
 - **Payment Tracking**: Mark bills as paid/unpaid with visual status indicators
 - **Status Filtering**: Filter bills by All, Today, This Week, Paid, or Unpaid
 - **Bill Actions**: Mark bills as paid or delete bills directly from the list
+- **Order Editing**: Edit unpaid orders to add/remove items and modify quantities
 - **Visual Status**: Color-coded borders and badges for paid/unpaid status
 - **Subtotal Display**: Shows subtotal (before tax) for cleaner pricing
 - **Enhanced Search**: Search by customer name, order ID, or items
 - **Firebase Sync**: Payment status synchronized across all devices
 - **Smart Bill Saving**: Updates existing saved orders instead of duplicating
+
+### ✏️ Order Editing
+- **Edit Unpaid Orders**: Modify orders that haven't been marked as paid
+- **Add/Remove Items**: Search and add new items or remove existing ones
+- **Quantity Control**: Adjust quantities with intuitive +/- buttons
+- **Variation Support**: Full support for adding items with variations
+- **Customer Name Editing**: Update customer names for existing orders
+- **Real-time Totals**: Live calculation of subtotal, tax, and total
+- **Mobile Optimized**: Touch-friendly edit interface for mobile devices
+- **Firebase Integration**: Changes saved immediately to database
 
 ### 🧾 Receipt System
 - **Professional Receipts**: Clean, printable receipt format in MVR currency
@@ -194,7 +205,16 @@ The POS system is designed to work alongside the main Knox Inventory System:
 
 ## Version History
 
-### v1.2.2 (Current)
+### v1.3.0 (Current)
+- ✏️ **Order Editing**: Edit unpaid orders to add/remove items and modify quantities
+- 🔄 **Edit Modal**: Comprehensive edit interface with customer name updates
+- 🔍 **Menu Search**: Search and add new items to existing orders during editing
+- 📱 **Mobile Optimized**: Touch-friendly edit controls for mobile devices
+- 🎯 **Variation Support**: Full variations support when adding items during editing
+- 💾 **Real-time Sync**: Changes saved immediately to Firebase database
+- 🚫 **Smart Restrictions**: Only unpaid orders can be edited for data integrity
+
+### v1.2.2
 - 🧑‍🤝‍🧑 **Customer Names**: Added optional customer name field for orders and receipts
 - 🔧 **Bill Management Fixes**: Fixed duplicate saves and delete functionality
 - 💰 **Subtotal Display**: Hamburger menu shows subtotal (before tax) for cleaner pricing
