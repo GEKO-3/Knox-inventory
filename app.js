@@ -11,8 +11,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
 // App version for cache busting
-const APP_VERSION = '1.2.0';
-console.log('Knox Inventory System v' + APP_VERSION + ' - Prep Products with Measure Per Product');
+const APP_VERSION = '1.2.1';
+console.log('Knox Inventory System v' + APP_VERSION + ' - Recipe Loading Fix & Enhanced Error Handling');
 
 // Global variables
 let supplyItems = [];
@@ -1846,33 +1846,49 @@ async function loadRecipeData() {
         
         if (snapshot.exists()) {
             const data = snapshot.val();
+            console.log('Recipe data from Firebase:', data);
             Object.keys(data).forEach(key => {
                 const recipe = { id: key, ...data[key] };
+                console.log('Processing recipe:', recipe.name, 'items:', recipe.items);
                 
                 // Recalculate costs for all items (supply items and prep products)
                 let totalCost = 0;
-                recipe.items.forEach(item => {
-                    if (item.itemType === 'prep') {
-                        // Find prep product and calculate cost
-                        const prepProduct = prepProducts.find(p => p.name === item.itemName);
-                        if (prepProduct) {
-                            item.cost = prepProduct.pricePerProduct * item.measure;
+                
+                // Ensure recipe has items array
+                if (recipe.items && Array.isArray(recipe.items)) {
+                    recipe.items.forEach(item => {
+                        if (item.itemType === 'prep') {
+                            // Find prep product and calculate cost
+                            const prepProduct = prepProducts.find(p => p.name === item.itemName);
+                            if (prepProduct) {
+                                item.cost = prepProduct.pricePerProduct * item.measure;
+                            } else {
+                                item.cost = 0;
+                            }
                         } else {
-                            item.cost = 0;
+                            // Default to supply item calculation
+                            const supplyItem = supplyItems.find(s => s.name === item.itemName);
+                            if (supplyItem) {
+                                item.cost = supplyItem.pricePerProduct * item.measure;
+                            } else {
+                                item.cost = 0;
+                            }
                         }
-                    } else {
-                        // Default to supply item calculation
-                        const supplyItem = supplyItems.find(s => s.name === item.itemName);
-                        if (supplyItem) {
-                            item.cost = supplyItem.pricePerProduct * item.measure;
-                        } else {
-                            item.cost = 0;
-                        }
-                    }
-                    totalCost += item.cost;
-                });
+                        totalCost += item.cost;
+                    });
+                } else {
+                    // Initialize empty items array if missing
+                    recipe.items = [];
+                }
                 
                 recipe.totalCost = totalCost;
+                
+                // Ensure recipe has required properties
+                if (!recipe.name) {
+                    console.warn('Recipe missing name:', recipe);
+                    recipe.name = 'Unnamed Recipe';
+                }
+                
                 recipes.push(recipe);
             });
         }

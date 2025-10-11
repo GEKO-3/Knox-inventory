@@ -1,4 +1,4 @@
-# Knox Inventory System - Progressive Web App
+# Knox Inventory System v1.2.1 - Progressive Web App
 
 A comprehensive web-based inventory management system built with Firebase, featuring supply management, stock tracking, recipe creation, and product profitability analysis. Now available as a Progressive Web App (PWA) for installation on any device!
 
@@ -177,10 +177,35 @@ The system uses three main Realtime Database nodes:
 - Automatic sync when connection restored
 - Visual offline indicator with status
 
+## Version History
+
+### v1.2.1 (Current)
+- 🔧 **Recipe Loading Fix**: Fixed TypeError when recipes missing items property
+- 🛡️ **Enhanced Error Handling**: Added safe array checks and fallbacks
+- 📊 **Data Validation**: Better handling of malformed recipe data
+- 🐛 **Bug Fixes**: Resolved recipe loading crashes and improved stability
+
+### v1.2.0
+- 🥘 **Prep Products**: Added intermediate products made from supply items
+- 🧮 **Enhanced Calculations**: Automatic cost calculations with measure per product
+- 📱 **PWA Support**: Full Progressive Web App functionality
+- 🔄 **Auto-Updates**: Service worker with automatic update notifications
+
+### v1.1.0
+- 📊 **Recipe System**: Complete recipe management with cost analysis
+- 💰 **Profit Calculations**: Selling price and profit margin tracking
+- 🎯 **Category Management**: Organized products by categories
+- 📈 **Enhanced UI**: Improved user interface and navigation
+
+### v1.0.0
+- 🚀 **Initial Release**: Supply and stock management system
+- 🔥 **Firebase Integration**: Real-time database synchronization
+- 📱 **Mobile Responsive**: Touch-friendly interface for all devices
+
 ## Support
 
 For questions or issues, please refer to the Firebase console for your project: `knox-inventory`
 
 ---
 
-**Knox Inventory System** - Professional inventory management made simple.
+**Knox Inventory System v1.2.1** - Professional inventory management made simple.

@@ -1,7 +1,8 @@
 {
   "name": "Knox Inventory System",
   "short_name": "Knox Inventory",
-  "description": "Complete inventory management system with cost calculations for supplies, stock, prep products, recipes, and final products",
+  "version": "1.2.1",
+  "description": "Complete inventory management system with enhanced recipe loading and error handling for supplies, stock, prep products, and recipes",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#fafafa",
