@@ -1,4 +1,4 @@
-# Knox POS System v1.3.1
+# Knox POS System v1.3.2
 
 A complete Point of Sale system for Knox Restaurant, built as a separate PWA from the main inventory system.
 
@@ -37,6 +37,7 @@ A complete Point of Sale system for Knox Restaurant, built as a separate PWA fro
 - **Status Filtering**: Filter bills by All, Today, This Week, Paid, or Unpaid
 - **Bill Actions**: Mark bills as paid or delete bills directly from the list
 - **Order Editing**: Edit unpaid orders to add/remove items and modify quantities
+- **Quick Bill Creation**: "Add New Bill" button for instant new bill creation
 - **Visual Status**: Color-coded borders and badges for paid/unpaid status
 - **Subtotal Display**: Shows subtotal (before tax) for cleaner pricing
 - **Enhanced Search**: Search by customer name, order ID, or items
@@ -52,6 +53,14 @@ A complete Point of Sale system for Knox Restaurant, built as a separate PWA fro
 - **Real-time Totals**: Live calculation of subtotal, tax, and total
 - **Mobile Optimized**: Touch-friendly edit interface for mobile devices
 - **Firebase Integration**: Changes saved immediately to database
+
+### ➕ Quick Bill Creation
+- **Add New Bill Button**: Prominent button at top of hamburger menu for instant access
+- **Auto Cart Clear**: Automatically clears existing cart items for fresh start
+- **Customer Reset**: Clears customer name field for new customer entry
+- **Smart Focus**: Auto-focuses menu search field for immediate item adding
+- **Visual Feedback**: Success notification confirms new bill creation
+- **Efficient Workflow**: Streamlined process from bill creation to item selection
 
 ### 🧾 Receipt System
 - **Professional Receipts**: Clean, printable receipt format in MVR currency
@@ -205,7 +214,15 @@ The POS system is designed to work alongside the main Knox Inventory System:
 
 ## Version History
 
-### v1.3.1 (Current)
+### v1.3.2 (Current)
+- ➕ **Add New Bill Button**: Added prominent "Add New Bill" button to hamburger menu top
+- ✨ **Quick Bill Creation**: Instantly start fresh bills with automatic cart clearing
+- 🎯 **Smart Focus**: Auto-focuses menu search after creating new bill for faster workflow
+- 🎨 **Enhanced UI**: Beautiful gradient button design matching app theme
+- 🔧 **Bills Fix**: Fixed database path mismatch causing bills to disappear from menu
+- 📊 **Improved Logging**: Added better error handling and debugging for bill operations
+
+### v1.3.1
 - 🐛 **Variation Fixes**: Fixed critical bug preventing items with variations from being added to cart
 - 🔧 **Modal Integration**: Unified variation system between regular cart and edit order mode
 - 📊 **Data Source Fix**: Corrected data source references from menuItems to recipes array

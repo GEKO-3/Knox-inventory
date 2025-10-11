@@ -11,7 +11,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
 // App version
-const APP_VERSION = '1.3.1';
+const APP_VERSION = '1.3.2';
 console.log('Knox POS System v' + APP_VERSION + ' - Customer Names & Bill Management Fixes');
 
 // Global variables
@@ -845,6 +845,9 @@ function setupEventListeners() {
     document.getElementById('close-bills-nav').addEventListener('click', closeBillsNav);
     document.getElementById('nav-overlay').addEventListener('click', closeBillsNav);
     
+    // Add New Bill button
+    document.getElementById('add-new-bill').addEventListener('click', addNewBill);
+    
     // Bills search and filter
     document.getElementById('bills-search').addEventListener('input', (e) => {
         filterBills(e.target.value);
@@ -1112,8 +1115,32 @@ function closeBillsNav() {
     overlay.classList.remove('active');
 }
 
+function addNewBill() {
+    // Clear the current cart
+    cart = [];
+    updateCartDisplay();
+    
+    // Clear customer name
+    document.getElementById('customer-name').value = '';
+    
+    // Close the bills navigation
+    closeBillsNav();
+    
+    // Show success feedback
+    showSuccessNotification('✨ New bill started - add items to begin');
+    
+    // Focus on the menu search for easy item adding
+    const menuSearch = document.getElementById('menu-search');
+    if (menuSearch) {
+        setTimeout(() => {
+            menuSearch.focus();
+        }, 300);
+    }
+}
+
 async function loadSavedBills() {
     try {
+        console.log('Loading saved bills...');
         const ordersRef = ref(window.db, 'pos-orders');
         const snapshot = await get(ordersRef);
         
@@ -1122,6 +1149,9 @@ async function loadSavedBills() {
             snapshot.forEach(child => {
                 savedBills.push({ id: child.key, ...child.val() });
             });
+            console.log(`Loaded ${savedBills.length} bills from Firebase`);
+        } else {
+            console.log('No bills found in Firebase');
         }
         
         // Sort by timestamp descending (newest first)
@@ -1131,7 +1161,7 @@ async function loadSavedBills() {
         displayBills(filteredBills);
     } catch (error) {
         console.error('Error loading saved bills:', error);
-        document.getElementById('bills-list').innerHTML = '<div class="error">Error loading bills</div>';
+        document.getElementById('bills-list').innerHTML = '<div class="error">Error loading bills. Please check your connection.</div>';
     }
 }
 
@@ -1423,11 +1453,11 @@ let editOrderCart = [];
 let currentEditMode = false;
 
 function editBill(billId) {
-    const billRef = ref(database, `bills/${billId}`);
+    const billRef = ref(window.db, `pos-orders/${billId}`);
     get(billRef).then((snapshot) => {
         if (snapshot.exists()) {
             const bill = snapshot.val();
-            if (bill.status === 'paid') {
+            if (bill.paid === true) {
                 alert('Cannot edit paid orders');
                 return;
             }
@@ -1735,7 +1765,7 @@ function saveEditOrder() {
         updatedAt: new Date().toISOString()
     };
     
-    const billRef = ref(database, `bills/${currentEditingBill}`);
+    const billRef = ref(window.db, `pos-orders/${currentEditingBill}`);
     update(billRef, updatedBill).then(() => {
         alert('Order updated successfully!');
         document.getElementById('edit-order-modal').style.display = 'none';
@@ -1743,9 +1773,15 @@ function saveEditOrder() {
         editOrderCart = [];
         currentEditMode = false;
         
+        // Update local bill data
+        const billIndex = savedBills.findIndex(b => b.id === currentEditingBill);
+        if (billIndex !== -1) {
+            savedBills[billIndex] = { ...savedBills[billIndex], ...updatedBill };
+        }
+        
         // Refresh bills display if hamburger menu is open
         if (document.getElementById('hamburger-menu').classList.contains('active')) {
-            displayBills();
+            applyCurrentFilter();
         }
     }).catch((error) => {
         console.error('Error updating order:', error);

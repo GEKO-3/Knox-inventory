@@ -1069,6 +1069,46 @@ body {
     overflow: hidden;
 }
 
+.add-new-bill-section {
+    padding: 15px 20px;
+    border-bottom: 2px solid #f0f0f0;
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+}
+
+.btn-add-new-bill {
+    width: 100%;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #D58A94, #c17883);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 2px 8px rgba(213, 138, 148, 0.3);
+}
+
+.btn-add-new-bill:hover {
+    background: linear-gradient(135deg, #c17883, #a86772);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(213, 138, 148, 0.4);
+}
+
+.btn-add-new-bill:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(213, 138, 148, 0.3);
+}
+
+.add-icon {
+    font-size: 1.1rem;
+    font-weight: bold;
+}
+
 .bills-search {
     padding: 15px 20px;
     border-bottom: 1px solid #eee;
