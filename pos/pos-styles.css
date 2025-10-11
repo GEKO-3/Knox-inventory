@@ -442,6 +442,42 @@ body {
     margin-top: 12px;
 }
 
+/* Customer Section */
+.customer-section {
+    padding: 15px 20px 10px 20px;
+    border-top: 1px solid #eee;
+    background: #f8f9fa;
+}
+
+.customer-section label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 6px;
+}
+
+.customer-section input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s ease;
+    box-sizing: border-box;
+}
+
+.customer-section input:focus {
+    border-color: #D58A94;
+    box-shadow: 0 0 0 2px rgba(213, 138, 148, 0.1);
+}
+
+.customer-section input::placeholder {
+    color: #999;
+    font-style: italic;
+}
+
 /* Order Actions */
 .order-actions {
     padding: 15px 20px 20px 20px;
@@ -577,6 +613,13 @@ body {
 .receipt-date {
     color: #666;
     font-size: 0.8rem;
+}
+
+.receipt-customer {
+    color: #D58A94;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-top: 5px;
 }
 
 .receipt-items {
@@ -1122,6 +1165,14 @@ body {
     font-size: 0.8rem;
     color: #666;
     margin-bottom: 4px;
+}
+
+.bill-customer {
+    font-size: 0.85rem;
+    color: #D58A94;
+    font-weight: 600;
+    margin-bottom: 4px;
+    font-style: italic;
 }
 
 .bill-items {

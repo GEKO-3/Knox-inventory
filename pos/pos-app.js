@@ -11,8 +11,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
 // App version
-const APP_VERSION = '1.2.1';
-console.log('Knox POS System v' + APP_VERSION + ' - Enhanced Scroll Detection & UI Improvements');
+const APP_VERSION = '1.2.2';
+console.log('Knox POS System v' + APP_VERSION + ' - Customer Names & Bill Management Fixes');
 
 // Global variables
 let recipes = [];
@@ -22,6 +22,7 @@ let deferredPrompt;
 let isScrolling = false;
 let touchStartY = 0;
 let touchStartTime = 0;
+let currentSavedOrderId = null;
 let selectedVariation = null;
 let settings = {
     taxRate: 12,
@@ -587,6 +588,8 @@ function clearCart() {
     
     if (confirm('Clear all items from cart?')) {
         cart = [];
+        currentSavedOrderId = null; // Reset saved order ID
+        document.getElementById('customer-name').value = ''; // Clear customer name
         updateCartDisplay();
     }
 }
@@ -653,6 +656,7 @@ async function saveOrder() {
     const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const tax = subtotal * (settings.taxRate / 100);
     const total = subtotal + tax;
+    const customerName = document.getElementById('customer-name').value.trim();
     
     const order = {
         timestamp: Date.now(),
@@ -662,6 +666,7 @@ async function saveOrder() {
         tax: tax,
         taxRate: settings.taxRate,
         total: total,
+        customerName: customerName || null,
         status: 'completed'
     };
     
@@ -689,6 +694,7 @@ function generateReceipt(order) {
             <div class="receipt-address">Point of Sale Receipt</div>
             <div class="receipt-date">${date.toLocaleString()}</div>
             <div class="receipt-order">Order #: ${order.id.slice(-8).toUpperCase()}</div>
+            ${order.customerName ? `<div class="receipt-customer">Customer: ${order.customerName}</div>` : ''}
         </div>
         
         <div class="receipt-items">
@@ -732,6 +738,8 @@ function printReceipt() {
 // Finish order
 function finishOrder() {
     cart = [];
+    currentSavedOrderId = null; // Reset saved order ID
+    document.getElementById('customer-name').value = ''; // Clear customer name
     updateCartDisplay();
     document.getElementById('receipt-modal').style.display = 'none';
     
@@ -1144,10 +1152,11 @@ function displayBills(bills) {
             <div class="bill-item ${isPaid ? 'paid' : 'unpaid'}" onclick="loadBill('${bill.id}')">
                 <div class="bill-header">
                     <span class="bill-id">#${bill.id.slice(-6).toUpperCase()}</span>
-                    <span class="bill-total">MVR ${bill.total.toFixed(2)}</span>
+                    <span class="bill-total">MVR ${bill.subtotal.toFixed(2)}</span>
                     <span class="bill-status ${isPaid ? 'status-paid' : 'status-unpaid'}">${isPaid ? 'PAID' : 'UNPAID'}</span>
                 </div>
                 <div class="bill-date">${date.toLocaleString()}</div>
+                ${bill.customerName ? `<div class="bill-customer">Customer: ${bill.customerName}</div>` : ''}
                 <div class="bill-items">${itemsText}</div>
                 <div class="bill-actions" onclick="event.stopPropagation()">
                     ${!isPaid ? `<button class="btn-pay" onclick="markAsPaid('${bill.id}')">Mark as Paid</button>` : ''}
@@ -1166,7 +1175,8 @@ function filterBills(searchQuery) {
         filteredBills = savedBills.filter(bill => {
             const billId = bill.id.toLowerCase();
             const itemsText = bill.items.map(item => item.name.toLowerCase()).join(' ');
-            return billId.includes(query) || itemsText.includes(query);
+            const customerName = (bill.customerName || '').toLowerCase();
+            return billId.includes(query) || itemsText.includes(query) || customerName.includes(query);
         });
     }
     
@@ -1215,9 +1225,9 @@ window.markAsPaid = function(billId) {
         bill.paid = true;
         bill.paidAt = Date.now();
         
-        // Update in Firebase
-        const billsRef = database.ref('orders');
-        billsRef.child(billId).update({
+        // Update in Firebase using correct syntax
+        const billRef = ref(window.db, `pos-orders/${billId}`);
+        update(billRef, {
             paid: true,
             paidAt: bill.paidAt
         }).then(() => {
@@ -1236,9 +1246,9 @@ window.deleteBill = function(billId) {
         // Remove from local array
         savedBills = savedBills.filter(bill => bill.id !== billId);
         
-        // Remove from Firebase
-        const billsRef = database.ref('orders');
-        billsRef.child(billId).remove().then(() => {
+        // Remove from Firebase using correct syntax
+        const billRef = ref(window.db, `pos-orders/${billId}`);
+        remove(billRef).then(() => {
             console.log('Bill deleted from Firebase');
             // Update the display
             applyCurrentFilter();
@@ -1319,6 +1329,7 @@ async function saveCurrentOrder() {
         const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
         const tax = subtotal * (settings.taxRate / 100);
         const total = subtotal + tax;
+        const customerName = document.getElementById('customer-name').value.trim();
         
         const order = {
             timestamp: Date.now(),
@@ -1328,14 +1339,24 @@ async function saveCurrentOrder() {
             tax: tax,
             taxRate: settings.taxRate,
             total: total,
+            customerName: customerName || null,
             status: 'saved' // Different from completed orders
         };
         
         const ordersRef = ref(window.db, 'pos-orders');
-        const orderRef = await push(ordersRef, order);
         
-        // Show success message
-        alert(`Order saved as #${orderRef.key.slice(-6).toUpperCase()}`);
+        // Check if we're updating an existing saved order
+        if (currentSavedOrderId) {
+            // Update existing order
+            const existingOrderRef = ref(window.db, `pos-orders/${currentSavedOrderId}`);
+            await set(existingOrderRef, order);
+            alert(`Order #${currentSavedOrderId.slice(-6).toUpperCase()} updated`);
+        } else {
+            // Create new order
+            const orderRef = await push(ordersRef, order);
+            currentSavedOrderId = orderRef.key;
+            alert(`Order saved as #${orderRef.key.slice(-6).toUpperCase()}`);
+        }
         
         // Optionally clear cart after saving
         if (confirm('Clear cart after saving?')) {

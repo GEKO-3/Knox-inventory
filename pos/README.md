@@ -1,4 +1,4 @@
-# Knox POS System v1.2.1
+# Knox POS System v1.2.2
 
 A complete Point of Sale system for Knox Restaurant, built as a separate PWA from the main inventory system.
 
@@ -25,16 +25,26 @@ A complete Point of Sale system for Knox Restaurant, built as a separate PWA fro
 - **Expandable Bills Panel**: Side navigation showing all saved bills
 - **Order History**: View, search, and reload past orders
 
+### 🧑‍🤝‍🧑 Customer Management
+- **Customer Names**: Optional customer name field for personalized orders
+- **Receipt Integration**: Customer names appear on printed receipts
+- **Bill Tracking**: Customer names visible in bills list for easy identification
+- **Search by Customer**: Find orders by customer name in hamburger menu
+- **Smart Cleanup**: Customer names automatically clear after order completion
+
 ### 💰 Bill Management
 - **Payment Tracking**: Mark bills as paid/unpaid with visual status indicators
 - **Status Filtering**: Filter bills by All, Today, This Week, Paid, or Unpaid
 - **Bill Actions**: Mark bills as paid or delete bills directly from the list
 - **Visual Status**: Color-coded borders and badges for paid/unpaid status
+- **Subtotal Display**: Shows subtotal (before tax) for cleaner pricing
+- **Enhanced Search**: Search by customer name, order ID, or items
 - **Firebase Sync**: Payment status synchronized across all devices
-- **Bill Deletion**: Remove unwanted bills with confirmation
+- **Smart Bill Saving**: Updates existing saved orders instead of duplicating
 
 ### 🧾 Receipt System
 - **Professional Receipts**: Clean, printable receipt format in MVR currency
+- **Customer Details**: Customer names prominently displayed on receipts
 - **Variation Details**: Receipts show selected variations clearly
 - **Auto Print Option**: Optional automatic printing after checkout
 - **Receipt Reprinting**: View and reprint past receipts
@@ -184,7 +194,15 @@ The POS system is designed to work alongside the main Knox Inventory System:
 
 ## Version History
 
-### v1.2.1 (Current)
+### v1.2.2 (Current)
+- 🧑‍🤝‍🧑 **Customer Names**: Added optional customer name field for orders and receipts
+- 🔧 **Bill Management Fixes**: Fixed duplicate saves and delete functionality
+- 💰 **Subtotal Display**: Hamburger menu shows subtotal (before tax) for cleaner pricing
+- 🔍 **Enhanced Search**: Search bills by customer name, order ID, or items
+- 🧾 **Receipt Integration**: Customer names appear on printed receipts
+- 🎨 **Visual Improvements**: Pink-themed customer styling throughout interface
+
+### v1.2.1
 - 🎯 **Enhanced Scroll Detection**: Fixed variations dialog appearing during scrolling
 - 📱 **Touch Gesture Analysis**: Smart filtering of scroll vs tap gestures
 - 🚀 **PWA Installation**: Fixed manifest icons and added install prompts
@@ -214,5 +232,5 @@ The POS system is designed to work alongside the main Knox Inventory System:
 
 ---
 
-**Knox POS System v1.2.1**  
-Built for efficiency, designed for mobile, optimized for restaurants with enhanced touch handling and comprehensive bill management.
+**Knox POS System v1.2.2**  
+Built for efficiency, designed for mobile, optimized for restaurants with customer management, enhanced bill handling, and professional receipt system.

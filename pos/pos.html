@@ -11,7 +11,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <meta name="app-version" content="1.2.1">
+    <meta name="app-version" content="1.2.2">
     
     <!-- PWA Meta Tags -->
     <meta name="description" content="Knox Point of Sale system for restaurant orders and receipts">
@@ -33,7 +33,7 @@
     <link rel="preconnect" href="https://www.gstatic.com">
     <link rel="dns-prefetch" href="https://knox-inventory-default-rtdb.asia-southeast1.firebasedatabase.app">
     
-    <link rel="stylesheet" href="pos-styles.css?v=1.2.1">
+    <link rel="stylesheet" href="pos-styles.css?v=1.2.2">
     
     <!-- Firebase SDK -->
     <script type="module">
@@ -165,6 +165,11 @@
                     </div>
                 </div>
                 
+                <div class="customer-section">
+                    <label for="customer-name">Customer Name (Optional):</label>
+                    <input type="text" id="customer-name" placeholder="Enter customer name..." maxlength="50">
+                </div>
+                
                 <div class="order-actions">
                     <button class="btn-secondary" id="save-order">Save Order</button>
                     <button class="btn-primary" id="checkout">Checkout & Print</button>
@@ -225,6 +230,6 @@
     </div>
 
     <!-- POS Application -->
-    <script type="module" src="pos-app.js?v=1.2.1"></script>
+    <script type="module" src="pos-app.js?v=1.2.2"></script>
 </body>
 </html>
